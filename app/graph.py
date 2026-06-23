@@ -1,11 +1,13 @@
-"""Supervisor 並行圖：parse -> match -> (proceed: fan-out / stop) -> join。
+"""Supervisor 反思迴圈圖：parse → match →（proceed）company_research → 三生成並行
+→ join → critic →（revise 回圈 / approve）→ human_gate(interrupt) → END。
 
-proceed 時扇出到 resume_tailor 與 company_research（並行）；
-company_research 完成後再扇出 cover_letter 與 interview_prep（需 company_brief）；
-三個生成節點匯入 join（fan-in barrier）後到 END。
-各節點寫入不同 state key，故不需 reducer。
+迴圈採單節點回圈（critic→company_research）；company_research 重寫時跳過搜尋；
+生成節點讀 state 的 critique.feedback 改進；重寫覆寫各自 state key（last-write-wins，不需 reducer）。
+human_gate 用 interrupt()，故圖以 MemorySaver checkpointer compile，執行需帶 thread_id。
 """
 from langgraph.graph import StateGraph, START, END
+from langgraph.checkpoint.memory import MemorySaver
+from langgraph.types import interrupt
 
 from app.state import CopilotState
 from app.agents.parse import parse_job
@@ -14,9 +16,10 @@ from app.agents.company import research_company
 from app.agents.resume import tailor_resume
 from app.agents.cover_letter import write_cover_letter
 from app.agents.interview import prepare_interview
+from app.agents.critic import critique_package
 
-# 匹配分數門檻：低於此分數即使 LLM 建議續做也提早收手（對應設計規格 §6）。
 PROCEED_SCORE_THRESHOLD = 60
+MAX_REVISIONS = 2  # 最多評審次數（至多 1 次重寫），防無限迴圈
 
 
 def parse_node(state: CopilotState) -> dict:
@@ -28,34 +31,64 @@ def match_node(state: CopilotState) -> dict:
 
 
 def company_research_node(state: CopilotState) -> dict:
+    if state.get("company_brief") is not None:
+        return {}  # 重寫回圈時不重複搜尋
     return {"company_brief": research_company(state["parsed_job"].company)}
 
 
+def _feedback(state: CopilotState):
+    critique = state.get("critique")
+    return critique.feedback if critique else None
+
+
 def resume_tailor_node(state: CopilotState) -> dict:
-    return {"tailored_resume": tailor_resume(state["parsed_job"], state["profile"])}
+    return {"tailored_resume": tailor_resume(
+        state["parsed_job"], state["profile"], _feedback(state))}
 
 
 def cover_letter_node(state: CopilotState) -> dict:
     return {"cover_letter": write_cover_letter(
-        state["parsed_job"], state["profile"], state.get("company_brief"))}
+        state["parsed_job"], state["profile"], state.get("company_brief"), _feedback(state))}
 
 
 def interview_prep_node(state: CopilotState) -> dict:
     return {"interview_kit": prepare_interview(
-        state["parsed_job"], state["profile"], state.get("company_brief"))}
+        state["parsed_job"], state["profile"], state.get("company_brief"), _feedback(state))}
 
 
 def join_node(state: CopilotState) -> dict:
-    """fan-in 匯合點：等三個生成節點都完成。"""
     return {}
 
 
-def route_after_match(state: CopilotState):
-    """proceed（通過分數門檻且 LLM 建議）→ 扇出；否則收手。"""
+def critic_node(state: CopilotState) -> dict:
+    critique = critique_package(
+        state["parsed_job"], state["tailored_resume"],
+        state["cover_letter"], state["interview_kit"])
+    return {"critique": critique, "revision_count": state.get("revision_count", 0) + 1}
+
+
+def human_gate_node(state: CopilotState) -> dict:
+    decision = interrupt({
+        "message": "請審閱投遞包並決定是否核可",
+        "match_score": state["match_report"].score,
+        "critique_pass": state["critique"].overall_pass,
+    })
+    approved = str(decision).strip().lower() in ("y", "yes", "approve", "是", "核可")
+    return {"approved": approved}
+
+
+def route_after_match(state: CopilotState) -> str:
     report = state["match_report"]
     if report.recommend_proceed and report.score >= PROCEED_SCORE_THRESHOLD:
-        return ["resume_tailor", "company_research"]
+        return "company_research"
     return "stop"
+
+
+def route_after_critic(state: CopilotState) -> str:
+    critique = state["critique"]
+    if critique.overall_pass or state.get("revision_count", 0) >= MAX_REVISIONS:
+        return "approve"
+    return "revise"
 
 
 def build_graph():
@@ -67,24 +100,25 @@ def build_graph():
     g.add_node("cover_letter", cover_letter_node)
     g.add_node("interview_prep", interview_prep_node)
     g.add_node("join", join_node)
+    g.add_node("critic", critic_node)
+    g.add_node("human_gate", human_gate_node)
 
     g.add_edge(START, "parse")
     g.add_edge("parse", "match")
     g.add_conditional_edges(
-        "match",
-        route_after_match,
-        {
-            "resume_tailor": "resume_tailor",
-            "company_research": "company_research",
-            "stop": END,
-        },
+        "match", route_after_match,
+        {"company_research": "company_research", "stop": END},
     )
-    # company_research 完成後扇出需要 company_brief 的兩個節點
+    g.add_edge("company_research", "resume_tailor")
     g.add_edge("company_research", "cover_letter")
     g.add_edge("company_research", "interview_prep")
-    # fan-in：三個生成節點匯入 join
     g.add_edge("resume_tailor", "join")
     g.add_edge("cover_letter", "join")
     g.add_edge("interview_prep", "join")
-    g.add_edge("join", END)
-    return g.compile()
+    g.add_edge("join", "critic")
+    g.add_conditional_edges(
+        "critic", route_after_critic,
+        {"revise": "company_research", "approve": "human_gate"},
+    )
+    g.add_edge("human_gate", END)
+    return g.compile(checkpointer=MemorySaver())
