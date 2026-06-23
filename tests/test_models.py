@@ -20,3 +20,8 @@ def test_match_report_score_must_be_in_range():
     assert ok.score == 80
     with pytest.raises(ValidationError):
         MatchReport(score=120, recommend_proceed=True, reason="超出範圍")
+
+
+def test_demo_profile_fixture_loads(demo_profile):
+    assert demo_profile.name == "陳小安"
+    assert "Python" in demo_profile.skills
