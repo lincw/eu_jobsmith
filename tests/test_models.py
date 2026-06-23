@@ -31,3 +31,27 @@ def test_match_report_score_lower_bound():
     assert MatchReport(score=0, recommend_proceed=False, reason="完全不符").score == 0
     with pytest.raises(ValidationError):
         MatchReport(score=-1, recommend_proceed=False, reason="負分非法")
+
+
+from app.models import CompanyBrief, TailoredResume, CoverLetter, InterviewKit
+
+
+def test_company_brief_minimal_and_defaults():
+    c = CompanyBrief(company="未來智能")
+    assert c.data_limited is False
+    assert c.benefits == [] and c.red_flags == [] and c.sources == []
+
+
+def test_tailored_resume_requires_summary():
+    r = TailoredResume(summary="針對 AI 工程師的定位", bullets=["做過 RAG"])
+    assert r.ats_keywords_hit == []
+
+
+def test_cover_letter_requires_body():
+    cl = CoverLetter(body="敬啟者……")
+    assert cl.company_facts_used == []
+
+
+def test_interview_kit_defaults_empty_lists():
+    k = InterviewKit()
+    assert k.technical_questions == [] and k.reverse_questions == []

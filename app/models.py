@@ -36,3 +36,46 @@ class MatchReport(BaseModel):
     suggestions: list[str] = Field(default_factory=list, description="補強建議")
     recommend_proceed: bool = Field(description="是否建議繼續產出投遞包")
     reason: str = Field(description="建議續做與否的理由")
+
+
+class CompanyBrief(BaseModel):
+    """⑧ 公司情報卡。"""
+    company: str
+    size: str | None = None
+    industry: str | None = None
+    funding: str | None = Field(default=None, description="資金/募資狀況")
+    salary_range: str | None = None
+    benefits: list[str] = Field(default_factory=list)
+    culture_summary: str | None = None
+    interview_reviews: str | None = Field(default=None, description="面試評價摘要")
+    red_flags: list[str] = Field(default_factory=list, description="避雷/負評")
+    recent_news: list[str] = Field(default_factory=list)
+    sources: list[str] = Field(default_factory=list, description="來源連結")
+    data_limited: bool = Field(default=False, description="查無足夠公開資料時為 True")
+
+
+class TailoredResume(BaseModel):
+    """③ 針對單一職缺客製的履歷。"""
+    summary: str = Field(description="針對此職缺的定位句")
+    bullets: list[str] = Field(default_factory=list, description="改寫後的經歷條列")
+    ats_keywords_hit: list[str] = Field(default_factory=list)
+    ats_keywords_missing: list[str] = Field(default_factory=list)
+    notes: str | None = None
+
+
+class CoverLetter(BaseModel):
+    """④ 求職信/自傳。"""
+    subject: str | None = None
+    body: str = Field(description="繁中求職信/自傳全文")
+    company_facts_used: list[str] = Field(default_factory=list, description="引用的公司事實")
+
+
+class InterviewKit(BaseModel):
+    """⑤ 面試準備包。"""
+    technical_questions: list[str] = Field(default_factory=list)
+    behavioral_questions: list[str] = Field(default_factory=list)
+    taiwan_specific_questions: list[str] = Field(default_factory=list, description="自傳/期望薪資/為什麼想加入等")
+    sample_answers: list[str] = Field(default_factory=list, description="STAR 擬答")
+    reverse_questions: list[str] = Field(default_factory=list, description="反向提問")
+    company_focus_points: list[str] = Field(default_factory=list, description="公司近況考點")
+    cautions: list[str] = Field(default_factory=list, description="避雷提醒")
