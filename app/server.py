@@ -17,6 +17,7 @@ app = FastAPI(title="台灣 AI 求職 Co-pilot")
 GRAPH = build_graph()
 
 _WEB_DIR = Path(__file__).parent / "web"
+_ROOT = Path(__file__).parent.parent  # 專案根（app/ 的上一層）
 
 
 def serialize_update(update: dict) -> dict:
@@ -31,7 +32,11 @@ def serialize_update(update: dict) -> dict:
 
 
 def _sse(obj: dict) -> str:
-    return "data: " + json.dumps(obj, ensure_ascii=False) + "\n\n"
+    return "data: " + json.dumps(
+        obj,
+        ensure_ascii=False,
+        default=lambda o: o.model_dump() if isinstance(o, BaseModel) else str(o),
+    ) + "\n\n"
 
 
 def _stream(graph_input, config):
@@ -68,13 +73,16 @@ class ResumeBody(BaseModel):
 
 @app.get("/api/sample")
 def sample():
-    jd = (Path("data/demo_jobs/ai_engineer.txt")).read_text(encoding="utf-8")
+    jd = (_ROOT / "data" / "demo_jobs" / "ai_engineer.txt").read_text(encoding="utf-8")
     return {"jd_text": jd}
 
 
 @app.post("/api/run")
 def run(body: RunBody):
-    profile = load_profile(body.profile_path)
+    profile_path = body.profile_path
+    if not Path(profile_path).is_absolute():
+        profile_path = str(_ROOT / profile_path)
+    profile = load_profile(profile_path)
     thread_id = uuid.uuid4().hex
     config = {"configurable": {"thread_id": thread_id}}
     initial = {
