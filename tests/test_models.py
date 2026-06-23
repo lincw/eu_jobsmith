@@ -25,3 +25,9 @@ def test_match_report_score_must_be_in_range():
 def test_demo_profile_fixture_loads(demo_profile):
     assert demo_profile.name == "陳小安"
     assert "Python" in demo_profile.skills
+
+
+def test_match_report_score_lower_bound():
+    assert MatchReport(score=0, recommend_proceed=False, reason="完全不符").score == 0
+    with pytest.raises(ValidationError):
+        MatchReport(score=-1, recommend_proceed=False, reason="負分非法")

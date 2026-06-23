@@ -9,6 +9,9 @@ from app.state import CopilotState
 from app.agents.parse import parse_job
 from app.agents.match import match_profile
 
+# 匹配分數門檻：低於此分數即使 LLM 建議續做也提早收手（對應設計規格 §6）。
+PROCEED_SCORE_THRESHOLD = 60
+
 
 def parse_node(state: CopilotState) -> dict:
     return {"parsed_job": parse_job(state["jd_text"])}
@@ -20,9 +23,11 @@ def match_node(state: CopilotState) -> dict:
 
 
 def route_after_match(state: CopilotState) -> str:
-    """依匹配結果決定續做或收手。"""
+    """依匹配結果決定續做或收手：需同時通過分數門檻與 LLM 建議。"""
     report = state["match_report"]
-    return "proceed" if report.recommend_proceed else "stop"
+    if report.recommend_proceed and report.score >= PROCEED_SCORE_THRESHOLD:
+        return "proceed"
+    return "stop"
 
 
 def build_graph():

@@ -37,3 +37,15 @@ def test_route_after_match_proceeds_on_high_score():
 def test_route_after_match_stops_when_not_recommended():
     state = {"match_report": MatchReport(score=40, recommend_proceed=False, reason="低")}
     assert graph_mod.route_after_match(state) == "stop"
+
+
+def test_route_after_match_stops_when_score_below_threshold():
+    # LLM 建議續做，但分數低於門檻 → 仍收手
+    state = {"match_report": MatchReport(score=50, recommend_proceed=True, reason="分數不足")}
+    assert graph_mod.route_after_match(state) == "stop"
+
+
+def test_route_after_match_stops_when_not_recommended_despite_high_score():
+    # 分數高，但 LLM 不建議 → 收手
+    state = {"match_report": MatchReport(score=90, recommend_proceed=False, reason="文化不合")}
+    assert graph_mod.route_after_match(state) == "stop"
