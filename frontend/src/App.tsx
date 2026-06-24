@@ -1,19 +1,19 @@
 import { useState } from "react"
-import type { ComponentType } from "react"
 import type { Seed, UserProfile } from "./types"
 import { JobSearchView } from "./views/JobSearchView"
 import { ResumeHealthView } from "./views/ResumeHealthView"
 import { PipelineView } from "./views/PipelineView"
 import { BackendSelector } from "./components/BackendSelector"
-import { Brand } from "./ui/Brand"
-import { Search, Gauge, Network } from "./ui/icons"
+import { Sidebar } from "./ui/Sidebar"
+import type { NavItem } from "./ui/Sidebar"
+import { Compass, FileChartColumn, Workflow } from "./ui/icons"
 
 type Tab = "search" | "resume" | "pipeline"
 
-const TABS: { id: Tab; label: string; icon: ComponentType<{ className?: string }> }[] = [
-  { id: "search", label: "自動找職缺", icon: Search },
-  { id: "resume", label: "履歷健檢", icon: Gauge },
-  { id: "pipeline", label: "投遞包工作台", icon: Network },
+const NAV: NavItem<Tab>[] = [
+  { id: "search", label: "自動找職缺", icon: Compass },
+  { id: "resume", label: "履歷健檢", icon: FileChartColumn },
+  { id: "pipeline", label: "投遞包工作台", icon: Workflow },
 ]
 
 export default function App() {
@@ -29,40 +29,24 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
-        <header className="mb-6 flex items-center justify-between gap-4">
-          <Brand />
-          <BackendSelector />
-        </header>
+    <div className="min-h-screen flex">
+      <Sidebar items={NAV} active={tab} onSelect={setTab} />
+      <div className="flex-1 min-w-0">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+          <header className="mb-6 flex items-center justify-end">
+            <BackendSelector />
+          </header>
 
-        <nav className="no-print inline-flex flex-wrap gap-1 p-1 bg-white border border-slate-200 rounded-xl shadow-card mb-6">
-          {TABS.map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              onClick={() => setTab(id)}
-              aria-current={tab === id ? "page" : undefined}
-              className={`inline-flex items-center gap-2 px-4 py-2 text-sm rounded-lg transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 ${
-                tab === id
-                  ? "bg-brand-600 text-white shadow-sm"
-                  : "text-slate-500 hover:text-slate-800 hover:bg-slate-50"
-              }`}
-            >
-              <Icon className="w-4 h-4" />
-              {label}
-            </button>
-          ))}
-        </nav>
-
-        {/* 三個分頁都保持掛載，只切換顯示，避免切分頁時遺失狀態（職缺清單／投遞包成品） */}
-        <div className={tab === "search" ? "" : "hidden"}>
-          <JobSearchView onPick={pickJob} onProfile={setProfile} />
-        </div>
-        <div className={tab === "resume" ? "" : "hidden"}>
-          <ResumeHealthView onProfile={setProfile} />
-        </div>
-        <div className={tab === "pipeline" ? "" : "hidden"}>
-          <PipelineView seed={seed} fallbackProfile={profile} onBack={() => setTab("search")} />
+          {/* 分頁全掛載只切顯示，保留狀態（職缺清單／投遞包成品） */}
+          <div className={tab === "search" ? "" : "hidden"}>
+            <JobSearchView onPick={pickJob} onProfile={setProfile} />
+          </div>
+          <div className={tab === "resume" ? "" : "hidden"}>
+            <ResumeHealthView onProfile={setProfile} />
+          </div>
+          <div className={tab === "pipeline" ? "" : "hidden"}>
+            <PipelineView seed={seed} fallbackProfile={profile} onBack={() => setTab("search")} />
+          </div>
         </div>
       </div>
     </div>

@@ -1,5 +1,5 @@
 // 品牌：節點圖記（多 agent 網路）+ wordmark。
-function Logomark({ size = 40 }: { size?: number }) {
+export function Logomark({ size = 40 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true">
       <defs>
