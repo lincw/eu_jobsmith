@@ -54,3 +54,24 @@ def test_codex_cli_backend_selected(monkeypatch):
     from app.llm_cli import CodexCLIChat
     llm = m.get_llm("standard")
     assert isinstance(llm, CodexCLIChat)
+
+
+def test_research_structured_none_for_non_cli(monkeypatch):
+    # 非 claude_cli 後端沒有內建上網工具 → research_structured 回 None（呼叫端自行降級）
+    m = _reload(monkeypatch, "anthropic")
+    assert m.research_structured(object, [("human", "x")]) is None
+
+
+def test_research_structured_uses_claude_cli(monkeypatch):
+    # claude_cli 後端 → 走 run_claude_structured_research（此處 mock 掉，不打真的 CLI）
+    m = _reload(monkeypatch, "claude_cli")
+    import app.llm_cli as cli
+    calls = {}
+
+    def fake(schema, messages, model):
+        calls["model"] = model
+        return "SENTINEL"
+    monkeypatch.setattr(cli, "run_claude_structured_research", fake)
+    out = m.research_structured(object, [("human", "x")], tier="standard")
+    assert out == "SENTINEL"
+    assert calls["model"] == "sonnet"

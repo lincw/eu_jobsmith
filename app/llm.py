@@ -26,3 +26,13 @@ def get_llm(tier: str, *, temperature: float = 0, max_tokens: int = 2000):
             max_retries=4,
         )
     raise ValueError(f"unknown LLM_BACKEND: {backend!r}")
+
+
+def research_structured(schema, messages, tier: str = "standard"):
+    """若當前後端有內建上網工具（目前為 claude_cli 的 WebSearch/WebFetch），用之做結構化
+    研究並回傳驗證後的模型；後端不支援則回 None，由呼叫端自行降級（如 Tavily / 一般知識）。"""
+    backend = settings.current_backend()
+    if backend == "claude_cli":
+        from app.llm_cli import run_claude_structured_research, CLAUDE_TIER_MODELS
+        return run_claude_structured_research(schema, messages, CLAUDE_TIER_MODELS[tier])
+    return None

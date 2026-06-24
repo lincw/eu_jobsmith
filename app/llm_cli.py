@@ -113,19 +113,28 @@ def _structured_loop(run_prompt, schema, messages):
 # ---------------------------------------------------------------------------
 
 CLAUDE_TIER_MODELS = {"cheap": "haiku", "standard": "sonnet", "deep": "opus"}
+# 讓模型可上網查證的內建工具（讀取型、headless 下免權限提示）
+CLAUDE_RESEARCH_TOOLS = ["WebSearch", "WebFetch"]
+_RESEARCH_TIMEOUT = 420  # 上網查證多輪，timeout 放寬
 
 
-def _run_claude(prompt: str, model: str) -> str:
-    """呼叫 `claude -p`（訂閱），回傳模型文字。移除 ANTHROPIC_API_KEY 以走訂閱登入。"""
+def _run_claude(prompt: str, model: str, allowed_tools: list[str] | None = None,
+                timeout: int = _TIMEOUT) -> str:
+    """呼叫 `claude -p`（訂閱），回傳模型文字。移除 ANTHROPIC_API_KEY 以走訂閱登入。
+
+    allowed_tools 非空時帶 --allowedTools，讓模型可用 WebSearch/WebFetch 等工具上網查證。
+    """
     exe = os.environ.get("CLAUDE_CLI_PATH") or shutil.which("claude")
     if not exe:
         raise RuntimeError("找不到 claude CLI，請確認已安裝並在 PATH。")
     env = {k: v for k, v in os.environ.items()
            if k not in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")}
+    args = [exe, "-p", prompt, "--output-format", "json", "--model", model]
+    if allowed_tools:
+        args += ["--allowedTools", *allowed_tools]
     proc = subprocess.run(
-        [exe, "-p", prompt, "--output-format", "json", "--model", model],
-        input="", capture_output=True, text=True, encoding="utf-8",
-        env=env, timeout=_TIMEOUT,
+        args, input="", capture_output=True, text=True, encoding="utf-8",
+        env=env, timeout=timeout,
     )
     if proc.returncode != 0:
         raise RuntimeError(f"claude CLI 失敗（rc={proc.returncode}）：{(proc.stderr or '')[:300]}")
@@ -134,6 +143,15 @@ def _run_claude(prompt: str, model: str) -> str:
         raise RuntimeError(f"claude CLI 回報錯誤：{envelope.get('result')}")
     _record_usage(envelope)
     return envelope.get("result", "")
+
+
+def run_claude_structured_research(schema, messages, model: str):
+    """用 WebSearch/WebFetch 上網查證 + 結構化輸出（claude_cli 專用，供公司情報 agent）。"""
+    return _structured_loop(
+        lambda prompt: _run_claude(prompt, model,
+                                   allowed_tools=CLAUDE_RESEARCH_TOOLS, timeout=_RESEARCH_TIMEOUT),
+        schema, messages,
+    )
 
 
 def _record_usage(envelope: dict) -> None:

@@ -1,11 +1,20 @@
 """⑧ 公司情報 Agent：上網查證公司並彙整成 CompanyBrief。
 
-有 Tavily 金鑰時走網路查證（可附來源、最可靠）；無金鑰時不再回空殼，
-改用模型一般知識產出 brief 並標記 data_limited + note，請使用者自行查證。
+查證優先序：
+1) CLI 後端內建上網工具（claude_cli 的 WebSearch/WebFetch）→ 免額外金鑰、可附來源（主要）。
+2) Tavily 金鑰 → 走 Tavily 搜尋。
+3) 都沒有 → 用模型一般知識產 brief 並標記 data_limited + note，請使用者自行查證。
 """
 from app.tools.search import search_web
-from app.llm import get_llm
+from app.llm import get_llm, research_structured
 from app.models import CompanyBrief
+
+COMPANY_RESEARCH_SYSTEM = (
+    "你是企業情報分析師。請『使用網路搜尋』查證這家公司的最新公開資訊，彙整成情報卡："
+    "規模、產業、資金/募資狀況、薪資範圍、福利、文化與評價摘要、面試評價、避雷紅旗、近期新聞，"
+    "並在 sources 欄填上你實際查到的來源連結。只根據查到的資料作答，不要臆測；"
+    "查不到的欄位留空，不要捏造數字或來源。data_limited 設為 false。"
+)
 
 COMPANY_SYSTEM = (
     "你是企業情報分析師。根據提供的公開搜尋結果，彙整出公司情報卡："
@@ -37,14 +46,34 @@ def _llm_only_brief(company_name: str) -> CompanyBrief:
                             note="未設定搜尋金鑰，且一般知識彙整失敗")
 
 
+def _cli_research_brief(company_name: str) -> CompanyBrief | None:
+    """若後端有內建上網工具（claude_cli），用 WebSearch 查證並結構化成 CompanyBrief；失敗回 None。"""
+    try:
+        brief = research_structured(
+            CompanyBrief,
+            [("system", COMPANY_RESEARCH_SYSTEM), ("human", f"公司名稱：{company_name}")],
+            tier="standard",
+        )
+    except Exception:
+        return None  # CLI 上網查證失敗 → 交回呼叫端降級（Tavily / 一般知識）
+    if brief is None:
+        return None
+    if not brief.company:
+        brief.company = company_name
+    return brief
+
+
 def research_company(company_name: str) -> CompanyBrief:
     """查證公司並回傳 CompanyBrief（standard 分層）。
 
-    有結果 → 依資料彙整（data_limited=False）；
-    查到但空 → 標記 data_limited（不臆測）；
+    CLI 後端可上網（claude_cli）→ 用 WebSearch 直接查證（免金鑰）；
+    否則有 Tavily 結果 → 依資料彙整（data_limited=False）；查到但空 → 標記 data_limited；
     未設搜尋金鑰（search_web 拋含 TAVILY_API_KEY 的錯）→ 改用 LLM 一般知識 brief；
     其他搜尋失敗 → 標記 data_limited。
     """
+    cli_brief = _cli_research_brief(company_name)
+    if cli_brief is not None:
+        return cli_brief
     try:
         results = search_web(f"{company_name} 公司 評價 薪資 福利 面試")
     except Exception as exc:
