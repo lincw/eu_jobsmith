@@ -8,7 +8,7 @@ import {
 
 type Phase = "idle" | "running" | "approval" | "done"
 
-export function PipelineView({ seed }: { seed?: Seed | null }) {
+export function PipelineView({ seed, onBack }: { seed?: Seed | null; onBack?: () => void }) {
   const [jd, setJd] = useState("")
   const [phase, setPhase] = useState<Phase>("idle")
   const [status, setStatus] = useState("")
@@ -81,6 +81,9 @@ export function PipelineView({ seed }: { seed?: Seed | null }) {
 
   return (
     <div>
+      {onBack && (
+        <button onClick={onBack} className="no-print text-sm text-indigo-600 mb-3">← 回職缺列表</button>
+      )}
       <div className="no-print mb-4 bg-white border rounded-xl p-5">
         <textarea
           className="w-full border rounded-lg p-3 text-sm h-32"

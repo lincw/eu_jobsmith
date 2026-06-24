@@ -28,9 +28,10 @@ export default function App() {
           <TabBtn active={tab === "resume"} onClick={() => setTab("resume")}>履歷健檢</TabBtn>
           <TabBtn active={tab === "pipeline"} onClick={() => setTab("pipeline")}>投遞包工作台</TabBtn>
         </nav>
-        {tab === "search" && <JobSearchView onPick={pickJob} />}
-        {tab === "resume" && <ResumeHealthView />}
-        {tab === "pipeline" && <PipelineView seed={seed} />}
+        {/* 三個分頁都保持掛載，只切換顯示，避免切分頁時遺失狀態（職缺清單／投遞包成品） */}
+        <div className={tab === "search" ? "" : "hidden"}><JobSearchView onPick={pickJob} /></div>
+        <div className={tab === "resume" ? "" : "hidden"}><ResumeHealthView /></div>
+        <div className={tab === "pipeline" ? "" : "hidden"}><PipelineView seed={seed} onBack={() => setTab("search")} /></div>
       </div>
     </div>
   )
