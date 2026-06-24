@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import type { PipelineState, Seed, UserProfile, TelemetryEntry } from "../types"
+import type { PipelineState, Seed, UserProfile, TelemetryEntry, EditablePackage } from "../types"
 import { readSSE } from "../sse"
 import { AgentTrace } from "../components/pipeline/AgentTrace"
 import {
@@ -10,6 +10,7 @@ import { Button } from "../ui/Button"
 import { EmptyState } from "../ui/EmptyState"
 import {
   Sparkles, Network, ArrowLeft, AlertTriangle, CheckCircle2, RefreshCw, Printer, LinkIcon,
+  Pencil, FileDown,
 } from "../ui/icons"
 
 type Phase = "idle" | "running" | "approval" | "done"
@@ -32,6 +33,8 @@ export function PipelineView(
   const [profileWarning, setProfileWarning] = useState("")
   const [telemetry, setTelemetry] = useState<TelemetryEntry[]>([])
   const [error, setError] = useState("")
+  const [editing, setEditing] = useState(false)
+  const [edited, setEdited] = useState<EditablePackage | null>(null)
 
   function handle(ev: any) {
     if (ev.type === "start") {
@@ -60,6 +63,7 @@ export function PipelineView(
     // 手動開跑（無 seed）時改用共用的真實履歷；都沒有才讓後端用範例 demo 並提醒。
     const effectiveProfile = profile ?? fallbackProfile ?? null
     setError(""); setNodeErrors([]); setProfileWarning(""); setTelemetry([]); setDone([]); setState({}); setRevisions(0)
+    setEditing(false); setEdited(null)
     setPhase("running"); setStatus("啟動中…")
     try {
       const resp = await fetch("/api/run", {
@@ -112,6 +116,57 @@ export function PipelineView(
     }
   }
 
+  const patch = (p: Partial<EditablePackage>) => setEdited((e) => (e ? { ...e, ...p } : e))
+
+  // 進入編輯模式時，從目前成品初始化可編輯欄位（之後讀／印／匯出都用編輯後的值）。
+  function toggleEdit() {
+    if (!editing && !edited) {
+      setEdited({
+        resumeSummary: state.tailored_resume?.summary ?? "",
+        resumeBullets: (state.tailored_resume?.bullets ?? []).join("\n"),
+        coverSubject: state.cover_letter?.subject ?? "",
+        coverBody: state.cover_letter?.body ?? "",
+      })
+    }
+    setEditing((v) => !v)
+  }
+
+  function buildPkg() {
+    const r = state.tailored_resume, c = state.cover_letter, k = state.interview_kit
+    return {
+      job_title: state.parsed_job?.title || "求職投遞包",
+      company: state.parsed_job?.company || state.company_brief?.company || "",
+      resume: r ? {
+        summary: edited ? edited.resumeSummary : r.summary,
+        bullets: edited ? edited.resumeBullets.split("\n").filter((b) => b.trim()) : r.bullets,
+        ats_keywords_hit: r.ats_keywords_hit,
+      } : undefined,
+      cover_letter: c ? {
+        subject: edited ? edited.coverSubject : (c.subject ?? ""),
+        body: edited ? edited.coverBody : c.body,
+      } : undefined,
+      interview: k ?? undefined,
+    }
+  }
+
+  async function downloadDocx() {
+    try {
+      const r = await fetch("/api/export/docx", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildPkg()),
+      })
+      if (!r.ok) { setError("匯出失敗，請重試。"); return }
+      const blob = await r.blob()
+      const a = document.createElement("a")
+      a.href = URL.createObjectURL(blob)
+      a.download = "投遞包.docx"
+      a.click()
+      URL.revokeObjectURL(a.href)
+    } catch {
+      setError("連線發生問題，請確認伺服器是否啟動。")
+    }
+  }
+
   // 從「自動找職缺」點選某職缺帶 JD + 真實履歷進來 → 自動開跑（投遞包用本人背景）
   useEffect(() => {
     if (seed?.jd) { setJd(seed.jd); run(seed.jd, seed.profile) }
@@ -159,7 +214,13 @@ export function PipelineView(
           </Button>
           <Button variant="secondary" onClick={loadSample} disabled={phase === "running"}>載入範例 JD</Button>
           {hasDocs && (
-            <Button variant="secondary" icon={Printer} onClick={() => window.print()}>列印 / 匯出 PDF</Button>
+            <>
+              <Button variant={editing ? "primary" : "secondary"} icon={Pencil} onClick={toggleEdit}>
+                {editing ? "完成編輯" : "編輯"}
+              </Button>
+              <Button variant="secondary" icon={FileDown} onClick={downloadDocx}>下載 Word</Button>
+              <Button variant="secondary" icon={Printer} onClick={() => window.print()}>列印 / 匯出 PDF</Button>
+            </>
           )}
         </div>
         {error && <p className="text-sm text-rose-600 mt-2">{error}</p>}
@@ -215,8 +276,26 @@ export function PipelineView(
 
           {state.match_report && <MatchCard m={state.match_report} />}
           {state.company_brief && <CompanyCard c={state.company_brief} />}
-          {state.tailored_resume && <ResumeDoc r={state.tailored_resume} />}
-          {state.cover_letter && <CoverLetterDoc c={state.cover_letter} />}
+          {state.tailored_resume && (
+            <ResumeDoc
+              r={state.tailored_resume}
+              editing={editing}
+              summary={edited?.resumeSummary}
+              bullets={edited?.resumeBullets}
+              onSummary={(v) => patch({ resumeSummary: v })}
+              onBullets={(v) => patch({ resumeBullets: v })}
+            />
+          )}
+          {state.cover_letter && (
+            <CoverLetterDoc
+              c={state.cover_letter}
+              editing={editing}
+              subject={edited?.coverSubject}
+              body={edited?.coverBody}
+              onSubject={(v) => patch({ coverSubject: v })}
+              onBody={(v) => patch({ coverBody: v })}
+            />
+          )}
           {state.interview_kit && <InterviewKitDoc k={state.interview_kit} />}
           {state.critique && <CritiqueCard q={state.critique} />}
 

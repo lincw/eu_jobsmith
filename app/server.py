@@ -5,8 +5,8 @@ import shutil
 import uuid
 from pathlib import Path
 
-from fastapi import FastAPI, File, Form, UploadFile
-from fastapi.responses import StreamingResponse, HTMLResponse, JSONResponse
+from fastapi import FastAPI, File, Form, UploadFile, Body
+from fastapi.responses import StreamingResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from langgraph.types import Command
@@ -229,6 +229,23 @@ def jd_fetch_endpoint(body: JDFetchBody):
     except Exception:
         return JSONResponse({"error": "抓取失敗，請改貼 JD 文字。"}, status_code=400)
     return {"title": res.title, "company": res.company, "text": res.text, "source": res.source}
+
+
+_DOCX_MEDIA = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
+
+@app.post("/api/export/docx")
+def export_docx(pkg: dict = Body(...)):
+    """把（可能已編輯的）投遞包轉成 Word 檔下載。"""
+    from app.export.docx_export import build_docx
+    try:
+        data = build_docx(pkg or {})
+    except Exception:
+        return JSONResponse({"error": "匯出失敗，請重試。"}, status_code=400)
+    return Response(
+        content=data, media_type=_DOCX_MEDIA,
+        headers={"Content-Disposition": 'attachment; filename="job-package.docx"'},
+    )
 
 
 def _backend_available(name: str) -> bool:

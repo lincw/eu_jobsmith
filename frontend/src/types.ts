@@ -70,3 +70,11 @@ export interface TelemetryEntry {
   node: string; latency_ms: number; calls: number;
   input_tokens: number; output_tokens: number; cost_usd: number;
 }
+
+// 投遞包可編輯欄位（履歷 summary/bullets、求職信 subject/body；bullets 以換行分隔）
+export interface EditablePackage {
+  resumeSummary: string;
+  resumeBullets: string;
+  coverSubject: string;
+  coverBody: string;
+}

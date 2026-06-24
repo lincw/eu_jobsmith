@@ -12,6 +12,9 @@ import {
 
 type Tone = "brand" | "emerald" | "amber" | "rose" | "slate"
 
+const EDIT_CLS =
+  "w-full border border-brand-200 bg-brand-50/30 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-200"
+
 function Tags({ items, tone }: { items: string[]; tone: Tone }) {
   return (
     <div className="flex flex-wrap gap-1.5">
@@ -92,13 +95,36 @@ export function CompanyCard({ c }: { c: CompanyBrief }) {
   )
 }
 
-export function ResumeDoc({ r }: { r: TailoredResume }) {
+export function ResumeDoc(
+  { r, editing = false, summary, bullets, onSummary, onBullets }:
+  {
+    r: TailoredResume
+    editing?: boolean
+    summary?: string
+    bullets?: string  // 換行分隔
+    onSummary?: (v: string) => void
+    onBullets?: (v: string) => void
+  },
+) {
+  const sum = summary ?? r.summary
+  const blist = bullets !== undefined ? bullets.split("\n").filter((b) => b.trim()) : r.bullets
   return (
     <Section icon={FileText} title="③ 客製履歷">
-      <p className="text-sm font-medium mb-2 text-slate-800">{r.summary}</p>
-      <ul className="list-disc pl-5 text-sm space-y-1 text-slate-700">
-        {r.bullets.map((b, i) => <li key={i}>{b}</li>)}
-      </ul>
+      {editing ? (
+        <div className="space-y-2">
+          <textarea className={`${EDIT_CLS} h-16`} value={summary ?? r.summary}
+            onChange={(e) => onSummary?.(e.target.value)} placeholder="專業摘要" />
+          <textarea className={`${EDIT_CLS} h-32`} value={bullets ?? r.bullets.join("\n")}
+            onChange={(e) => onBullets?.(e.target.value)} placeholder="一行一個重點…" />
+        </div>
+      ) : (
+        <>
+          <p className="text-sm font-medium mb-2 text-slate-800">{sum}</p>
+          <ul className="list-disc pl-5 text-sm space-y-1 text-slate-700">
+            {blist.map((b, i) => <li key={i}>{b}</li>)}
+          </ul>
+        </>
+      )}
       {r.ats_keywords_hit.length > 0 && (<><Label>ATS 命中</Label><Tags items={r.ats_keywords_hit} tone="emerald" /></>)}
       {r.ats_keywords_missing.length > 0 && (<><Label>ATS 尚缺</Label><Tags items={r.ats_keywords_missing} tone="amber" /></>)}
       {r.notes && <p className="text-xs text-slate-500 mt-3">{r.notes}</p>}
@@ -106,11 +132,34 @@ export function ResumeDoc({ r }: { r: TailoredResume }) {
   )
 }
 
-export function CoverLetterDoc({ c }: { c: CoverLetter }) {
+export function CoverLetterDoc(
+  { c, editing = false, subject, body, onSubject, onBody }:
+  {
+    c: CoverLetter
+    editing?: boolean
+    subject?: string
+    body?: string
+    onSubject?: (v: string) => void
+    onBody?: (v: string) => void
+  },
+) {
+  const subj = subject ?? c.subject ?? ""
+  const text = body ?? c.body
   return (
     <Section icon={Mail} title="④ 求職信">
-      {c.subject && <p className="text-sm font-medium mb-2 text-slate-800">主旨：{c.subject}</p>}
-      <div className="text-sm whitespace-pre-wrap leading-relaxed text-slate-700">{c.body}</div>
+      {editing ? (
+        <div className="space-y-2">
+          <input className={EDIT_CLS} value={subject ?? c.subject ?? ""}
+            onChange={(e) => onSubject?.(e.target.value)} placeholder="主旨" />
+          <textarea className={`${EDIT_CLS} h-48`} value={body ?? c.body}
+            onChange={(e) => onBody?.(e.target.value)} placeholder="求職信內文…" />
+        </div>
+      ) : (
+        <>
+          {subj && <p className="text-sm font-medium mb-2 text-slate-800">主旨：{subj}</p>}
+          <div className="text-sm whitespace-pre-wrap leading-relaxed text-slate-700">{text}</div>
+        </>
+      )}
     </Section>
   )
 }
