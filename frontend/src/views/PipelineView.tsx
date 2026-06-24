@@ -123,29 +123,16 @@ export function PipelineView(
 
       <div className="grid lg:grid-cols-[260px_1fr] gap-6 print:block">
         <aside className="no-print">
-          <AgentTrace done={done} running={phase === "running"} revisions={revisions} status={status} />
+          <AgentTrace
+            done={done}
+            running={phase === "running"}
+            revisions={revisions}
+            status={status}
+            telemetry={telemetry}
+            nodeErrors={nodeErrors}
+          />
         </aside>
         <main className="space-y-4">
-          {telemetry.length > 0 && (() => {
-            const tot = telemetry.reduce(
-              (a, t) => ({
-                calls: a.calls + (t.calls || 0),
-                tokens: a.tokens + (t.input_tokens || 0) + (t.output_tokens || 0),
-                cost: a.cost + (t.cost_usd || 0),
-                ms: a.ms + (t.latency_ms || 0),
-              }),
-              { calls: 0, tokens: 0, cost: 0, ms: 0 },
-            )
-            return (
-              <div className="text-xs text-slate-500 bg-white border rounded-lg px-3 py-2 flex flex-wrap gap-x-4 gap-y-1">
-                <span>⚙️ {telemetry.length} 個 agent</span>
-                <span>{tot.calls} 次 LLM 呼叫</span>
-                <span>{tot.tokens.toLocaleString()} tokens</span>
-                {tot.cost > 0 && <span>${tot.cost.toFixed(4)}</span>}
-                <span>{(tot.ms / 1000).toFixed(1)}s</span>
-              </div>
-            )
-          })()}
           {profileWarning && (
             <div className="border-2 border-amber-300 bg-amber-50 rounded-xl p-3 text-sm text-amber-800">
               ⚠️ {profileWarning}
