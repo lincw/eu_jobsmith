@@ -20,10 +20,14 @@ from app.agents.resume_eval import structure_profile, evaluate_resume
 from app.agents.job_search import derive_queries, rank_jobs
 from app.sources.registry import search_all, linkedin_search_url
 
+from app.store import db as _appdb
+from app.store import history as _history
+
 app = FastAPI(title="台灣 AI 求職 Co-pilot")
 
 # 單一圖實例：/run 與 /resume 共用同一個 MemorySaver（per-process）。
 GRAPH = build_graph()
+_appdb.init_db()  # 應用層 sqlite（歷史/記憶）
 
 _ROOT = Path(__file__).parent.parent  # 專案根（app/ 的上一層）
 _FRONTEND_DIST = _ROOT / "frontend" / "dist"  # Vite 建置產物（產品級前端）
@@ -81,6 +85,13 @@ def _stream(graph_input, config):
                     "thread_id": config["configurable"]["thread_id"],
                     "payload": payload})
     else:
+        # 終局：自動把完成的投遞包存進歷史（有實際成品才存；失敗不影響串流）
+        try:
+            final = serialize_update(snapshot.values)
+            if final.get("tailored_resume") or final.get("cover_letter") or final.get("interview_kit"):
+                _history.save_package(final)
+        except Exception:
+            pass
         yield _sse({"type": "done"})
 
 
@@ -392,6 +403,25 @@ def resume(body: ResumeBody):
         yield from _stream(Command(resume=body.decision), config)
 
     return StreamingResponse(gen(), media_type="text/event-stream")
+
+
+@app.get("/api/history")
+def history_list():
+    return {"packages": _history.list_packages()}
+
+
+@app.get("/api/history/{pid}")
+def history_get(pid: int):
+    pkg = _history.get_package(pid)
+    if pkg is None:
+        return JSONResponse({"error": "找不到該投遞包"}, status_code=404)
+    return pkg
+
+
+@app.delete("/api/history/{pid}")
+def history_delete(pid: int):
+    _history.delete_package(pid)
+    return {"ok": True}
 
 
 @app.get("/", response_class=HTMLResponse)

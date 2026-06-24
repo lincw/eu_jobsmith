@@ -10,3 +10,4 @@ __pycache__/
 .DS_Store
 frontend/dist/
 data/checkpoints.sqlite*
+data/app.sqlite*

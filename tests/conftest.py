@@ -4,6 +4,8 @@ from pathlib import Path
 
 # 測試用 in-memory checkpointer（須在 import app.server 建 GRAPH 前設定），避免汙染真實 db。
 os.environ.setdefault("COPILOT_DB", ":memory:")
+# 應用層 sqlite（歷史/記憶）測試也用 in-memory，避免寫到真實 data/app.sqlite。
+os.environ.setdefault("COPILOT_APP_DB", ":memory:")
 
 import pytest
 

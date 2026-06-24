@@ -4,18 +4,20 @@ import { JobSearchView } from "./views/JobSearchView"
 import { ResumeHealthView } from "./views/ResumeHealthView"
 import { PipelineView } from "./views/PipelineView"
 import { InterviewView } from "./views/InterviewView"
+import { HistoryView } from "./views/HistoryView"
 import { BackendSelector } from "./components/BackendSelector"
 import { Sidebar } from "./ui/Sidebar"
 import type { NavItem } from "./ui/Sidebar"
-import { Compass, FileChartColumn, Workflow, MessagesSquare } from "./ui/icons"
+import { Compass, FileChartColumn, Workflow, MessagesSquare, Archive } from "./ui/icons"
 
-type Tab = "search" | "resume" | "pipeline" | "interview"
+type Tab = "search" | "resume" | "pipeline" | "interview" | "history"
 
 const NAV: NavItem<Tab>[] = [
   { id: "search", label: "自動找職缺", icon: Compass },
   { id: "resume", label: "履歷健檢", icon: FileChartColumn },
   { id: "pipeline", label: "投遞包工作台", icon: Workflow },
   { id: "interview", label: "面試模擬", icon: MessagesSquare },
+  { id: "history", label: "我的投遞包", icon: Archive },
 ]
 
 export default function App() {
@@ -51,6 +53,9 @@ export default function App() {
           </div>
           <div className={tab === "interview" ? "" : "hidden"}>
             <InterviewView fallbackProfile={profile} />
+          </div>
+          <div className={tab === "history" ? "" : "hidden"}>
+            <HistoryView active={tab === "history"} onReopen={pickJob} />
           </div>
         </div>
       </div>
