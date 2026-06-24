@@ -4,17 +4,17 @@ from __future__ import annotations
 from urllib.parse import quote
 
 from app.models import SearchResult
-from app.sources import source_104, source_yourator
+from app.sources import source_104, source_yourator, source_linkedin
 
 # 可關鍵字搜尋的來源（name -> search 函式）
 SEARCHABLE = {
     source_104.NAME: source_104.search,
     source_yourator.NAME: source_yourator.search,
+    source_linkedin.NAME: source_linkedin.search,
 }
 
 # 尚未穩定、暫不啟用的來源（UI 標「即將支援」，避免永遠失敗的來源傷可信度）。
-# Cake 的 __NEXT_DATA__ 結構脆弱、目前解析不到，待找到穩定 API 再納入 SEARCHABLE。
-COMING_SOON = {"cake": "Cake"}
+COMING_SOON: dict[str, str] = {}
 
 
 def search_all(keywords: str, sources: list[str] | None = None, limit: int = 15) -> list[SearchResult]:

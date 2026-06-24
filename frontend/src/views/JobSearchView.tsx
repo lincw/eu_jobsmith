@@ -11,7 +11,7 @@ import { EmptyState } from "../ui/EmptyState"
 import { Search, Upload, Loader2, ExternalLink, Sparkles, AlertTriangle, CheckCircle2, XCircle } from "../ui/icons"
 
 const SRC_LABEL: Record<string, string> = {
-  "104": "104", yourator: "Yourator", cake: "Cake", sample: "範例",
+  "104": "104", yourator: "Yourator", linkedin: "LinkedIn", cake: "Cake", sample: "範例",
 }
 
 function fitGradient(s: number) {

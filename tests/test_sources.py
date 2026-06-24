@@ -1,4 +1,4 @@
-from app.sources import source_104, source_yourator, source_cake
+from app.sources import source_104, source_yourator, source_cake, source_linkedin
 
 
 class FakeResp:
@@ -101,6 +101,49 @@ def test_source_cake_blocked_when_no_next_data(monkeypatch):
     monkeypatch.setattr(source_cake, "http_get", lambda *a, **k: FakeResp(text="<html>no data</html>"))
     res = source_cake.search("AI")
     assert res.blocked is True
+
+
+_LI_HTML = """
+<ul>
+  <li><div class="base-card">
+    <a class="base-card__full-link" href="https://tw.linkedin.com/jobs/view/ai-engineer-123?refId=x&trackingId=y">l</a>
+    <h3 class="base-search-card__title">  AI Engineer  </h3>
+    <h4 class="base-search-card__subtitle">Onramp Lab</h4>
+    <span class="job-search-card__location">Taipei City, Taiwan</span>
+  </div></li>
+  <li><div class="base-card">
+    <a class="base-card__full-link" href="https://tw.linkedin.com/jobs/view/ml-eng-456">l</a>
+    <h3 class="base-search-card__title">ML Engineer</h3>
+    <h4 class="base-search-card__subtitle">Acme</h4>
+    <span class="job-search-card__location">Taiwan</span>
+  </div></li>
+</ul>
+"""
+
+
+def test_source_linkedin_parses(monkeypatch):
+    monkeypatch.setattr(source_linkedin, "http_get", lambda *a, **k: FakeResp(text=_LI_HTML))
+    res = source_linkedin.search("AI", limit=5)
+    assert res.blocked is False
+    assert len(res.jobs) == 2
+    j = res.jobs[0]
+    assert j.title == "AI Engineer"
+    assert j.company == "Onramp Lab"
+    assert j.location == "Taipei City, Taiwan"
+    assert j.url == "https://tw.linkedin.com/jobs/view/ai-engineer-123"  # query 已去除
+    assert j.source == "linkedin"
+
+
+def test_source_linkedin_blocked_on_empty(monkeypatch):
+    monkeypatch.setattr(source_linkedin, "http_get", lambda *a, **k: FakeResp(text="<html></html>"))
+    assert source_linkedin.search("AI").blocked is True
+
+
+def test_source_linkedin_blocked_on_error(monkeypatch):
+    def boom(*a, **k):
+        raise ConnectionError("nope")
+    monkeypatch.setattr(source_linkedin, "http_get", boom)
+    assert source_linkedin.search("AI").blocked is True
 
 
 def test_registry_search_all_aggregates(monkeypatch):
