@@ -49,6 +49,15 @@ def test_source_104_salary_from_low_high(monkeypatch):
     assert salaries[2] == "面議"
 
 
+def test_source_104_open_ended_salary_sentinel(monkeypatch):
+    # 104「X 元以上」回傳 salaryHigh=9999999 哨兵值，不可印成 NT$40,000–9,999,999
+    payload = {"data": [{"jobName": "x", "custName": "A", "salaryLow": 40000,
+                         "salaryHigh": 9999999, "s10": 50, "link": {"job": "https://x/1"}}]}
+    monkeypatch.setattr(source_104, "http_get", lambda *a, **k: FakeResp(json_data=payload))
+    j = source_104.search("AI").jobs[0]
+    assert j.salary == "月薪 NT$40,000 以上"
+
+
 def test_source_104_ignores_legacy_salarydesc(monkeypatch):
     # 即使有舊的 salaryDesc 字串也不再採用，一律以 low/high 計算
     payload = {"data": [{"jobName": "x", "custName": "A", "salaryDesc": "舊字串",

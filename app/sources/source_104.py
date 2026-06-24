@@ -24,6 +24,8 @@ def _format_salary(d: dict) -> str | None:
         high = int(d.get("salaryHigh") or 0)
     except (TypeError, ValueError):
         low = high = 0
+    if high >= 9_999_999:  # 104「X 元以上」開放上限的哨兵值 → 視為無上限
+        high = 0
     try:
         code = int(d.get("s10") or 0)
     except (TypeError, ValueError):

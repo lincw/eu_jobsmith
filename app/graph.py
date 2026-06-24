@@ -123,7 +123,9 @@ def human_gate_node(state: CopilotState) -> dict:
 
 def route_after_match(state: CopilotState) -> str:
     report = state["match_report"]
-    if report.recommend_proceed and report.score >= PROCEED_SCORE_THRESHOLD:
+    # 若 match agent 失敗（已降級），不要把崩潰誤判為「低適配 → 停止」：照樣產出降級投遞包。
+    match_errored = any(e.get("node") == "match" for e in (state.get("errors") or []))
+    if match_errored or (report.recommend_proceed and report.score >= PROCEED_SCORE_THRESHOLD):
         return "company_research"
     return "stop"
 

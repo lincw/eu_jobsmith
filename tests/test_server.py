@@ -130,6 +130,54 @@ def test_run_degrades_gracefully_on_agent_failure(monkeypatch):
     assert err["node"] == "resume_tailor"
 
 
+def test_run_continues_when_match_agent_crashes(monkeypatch):
+    # match agent 崩潰不可被誤判為「低適配 → 停止」：仍要產出降級投遞包並走到人工關卡
+    _patch_agents(monkeypatch)
+
+    def boom(job, profile):
+        raise RuntimeError("match LLM 429")
+    monkeypatch.setattr(graph_mod, "match_profile", boom)
+
+    client = TestClient(server_mod.app)
+    r = client.post("/api/run", json={"jd_text": "JD"})
+    events = _parse_sse(r.text)
+    types = [e["type"] for e in events]
+    assert types[-1] == "interrupt"        # 沒有在 match 後就 stop
+    assert any(e.get("type") == "node_error" and e.get("node") == "match" for e in events)
+    nodes = [e.get("node") for e in events if e.get("type") == "node"]
+    assert "resume_tailor" in nodes        # 下游降級投遞包仍有產出
+
+
+def test_run_partial_profile_returns_sse_error_not_500(monkeypatch):
+    # 缺必填欄位的 profile 應回友善 SSE error（在 generator 內），而非 500
+    _patch_agents(monkeypatch)
+    client = TestClient(server_mod.app)
+    r = client.post("/api/run", json={"jd_text": "JD", "profile": {"skills": ["x"]}})
+    assert r.status_code == 200            # 串流本身成功
+    events = _parse_sse(r.text)
+    assert events[0]["type"] == "start"
+    assert any(e["type"] == "error" for e in events)
+    assert not any(e["type"] == "node" for e in events)
+
+
+def test_run_warns_when_using_demo_profile(monkeypatch):
+    # 未帶真實履歷 → 用 demo，但要明確發 profile_warning 提醒
+    _patch_agents(monkeypatch)
+    client = TestClient(server_mod.app)
+    r = client.post("/api/run", json={"jd_text": "JD"})
+    events = _parse_sse(r.text)
+    assert any(e["type"] == "profile_warning" for e in events)
+
+
+def test_run_no_warning_when_real_profile(monkeypatch):
+    _patch_agents(monkeypatch)
+    client = TestClient(server_mod.app)
+    r = client.post("/api/run", json={
+        "jd_text": "JD", "profile": {"name": "真人", "summary": "工程師"}})
+    events = _parse_sse(r.text)
+    assert not any(e["type"] == "profile_warning" for e in events)
+
+
 def test_jobs_auto_falls_back_when_all_blocked(monkeypatch):
     from app.models import Profile, JobMatch, SearchResult
     monkeypatch.setattr(server_mod, "structure_profile",
@@ -167,11 +215,11 @@ def test_jobs_auto_emits_profile_event(monkeypatch):
     monkeypatch.setattr(server_mod, "rank_jobs",
                         lambda profile, jobs, top_k=12: [JobMatch(job=jobs[0], fit_score=80)])
     client = TestClient(server_mod.app)
-    r = client.post("/api/jobs/auto", data={"resume_text": "履歷"})
+    r = client.post("/api/jobs/auto", data={"resume_text": "我的履歷原文 Python"})
     events = _parse_sse(r.text)
     prof = next(e for e in events if e["type"] == "profile")
     assert prof["data"]["name"] == "王小明"
-    assert "raw_text" not in prof["data"]  # 不回傳全文
+    assert prof["data"]["raw_text"] == "我的履歷原文 Python"  # 含原文供 pipeline 帶入
 
 
 def test_index_serves_html():

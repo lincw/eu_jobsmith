@@ -12,7 +12,10 @@ function fitColor(s: number) {
   return s >= 80 ? "bg-emerald-600" : s >= 60 ? "bg-amber-500" : "bg-slate-400"
 }
 
-export function JobSearchView({ onPick }: { onPick: (jd: string, profile?: UserProfile | null) => void }) {
+export function JobSearchView(
+  { onPick, onProfile }:
+  { onPick: (jd: string, profile?: UserProfile | null) => void; onProfile?: (p: UserProfile) => void },
+) {
   const [text, setText] = useState("")
   const [busy, setBusy] = useState(false)
   const [done, setDone] = useState(false)
@@ -34,7 +37,7 @@ export function JobSearchView({ onPick }: { onPick: (jd: string, profile?: UserP
       const resp = await fetch("/api/jobs/auto", { method: "POST", body: form })
       await readSSE(resp, (ev) => {
         if (ev.type === "progress") setStatus(ev.message)
-        else if (ev.type === "profile") setProfile(ev.data as UserProfile)
+        else if (ev.type === "profile") { setProfile(ev.data as UserProfile); onProfile?.(ev.data as UserProfile) }
         else if (ev.type === "queries") setQueries(ev.queries)
         else if (ev.type === "source")
           setSources((s) => [...s, { source: ev.source, count: ev.count, blocked: ev.blocked }])

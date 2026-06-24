@@ -109,7 +109,8 @@ def resume_evaluate(
         try:
             yield _sse({"type": "progress", "step": "structure", "message": "解析履歷中…"})
             profile = structure_profile(text)
-            yield _sse({"type": "profile", "data": profile.model_dump(exclude={"raw_text"})})
+            # 含 raw_text 原文，供使用者接著到「投遞包工作台」手動開跑時帶入本人背景。
+            yield _sse({"type": "profile", "data": profile.model_dump()})
             yield _sse({"type": "progress", "step": "evaluate", "message": "健檢評估中…"})
             assessment = evaluate_resume(text, profile)
             yield _sse({"type": "assessment", "data": assessment})
@@ -141,8 +142,9 @@ def jobs_auto(
         try:
             yield _sse({"type": "progress", "step": "structure", "message": "解析履歷中…"})
             profile = structure_profile(text)
-            # 把使用者真實履歷結構送給前端，供「產生投遞包」時帶入 pipeline（非 demo）。
-            yield _sse({"type": "profile", "data": profile.model_dump(exclude={"raw_text"})})
+            # 把使用者真實履歷（含 raw_text 原文）送給前端，供「產生投遞包」時整包帶入 pipeline，
+            # 讓 match/resume/cover/interview agent 拿到逐字履歷（檔案上傳時前端沒有原文，必須由後端帶）。
+            yield _sse({"type": "profile", "data": profile.model_dump()})
             queries = derive_queries(profile)
             yield _sse({"type": "queries", "queries": queries})
 
@@ -217,18 +219,29 @@ def _resolve_profile(body: RunBody) -> Profile:
 
 @app.post("/api/run")
 def run(body: RunBody):
-    profile = _resolve_profile(body)
     thread_id = uuid.uuid4().hex
     config = {"configurable": {"thread_id": thread_id}}
-    initial = {
-        "jd_text": body.jd_text, "profile": profile,
-        "parsed_job": None, "match_report": None, "company_brief": None,
-        "tailored_resume": None, "cover_letter": None, "interview_kit": None,
-        "critique": None, "revision_count": 0, "approved": None, "errors": [],
-    }
 
     def gen():
         yield _sse({"type": "start", "thread_id": thread_id})
+        # 在 generator 內解析履歷，壞/缺履歷回友善 SSE error 而非 500（與其他端點一致）。
+        try:
+            profile = _resolve_profile(body)
+        except Exception as exc:
+            yield _sse({"type": "error",
+                        "message": f"履歷資料無法使用，請重新上傳履歷再試。（{type(exc).__name__}）"})
+            return
+        # 沒帶真實履歷 → 用範例 demo，明確提醒使用者（避免把假人投遞包當成自己的）。
+        if not body.profile:
+            yield _sse({"type": "profile_warning",
+                        "message": "目前使用範例履歷示意（非你本人背景）。"
+                                   "請先到「自動找職缺」或「履歷健檢」提供你的履歷，再產生個人化投遞包。"})
+        initial = {
+            "jd_text": body.jd_text, "profile": profile,
+            "parsed_job": None, "match_report": None, "company_brief": None,
+            "tailored_resume": None, "cover_letter": None, "interview_kit": None,
+            "critique": None, "revision_count": 0, "approved": None, "errors": [],
+        }
         yield from _stream(initial, config)
 
     return StreamingResponse(gen(), media_type="text/event-stream")

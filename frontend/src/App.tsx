@@ -10,9 +10,12 @@ type Tab = "search" | "resume" | "pipeline"
 export default function App() {
   const [tab, setTab] = useState<Tab>("search")
   const [seed, setSeed] = useState<Seed | null>(null)
+  // 使用者真實履歷（自動找職缺解析後共用），讓「投遞包工作台」分頁手動開跑也能用本人背景。
+  const [profile, setProfile] = useState<UserProfile | null>(null)
 
-  function pickJob(jd: string, profile?: UserProfile | null) {
-    setSeed({ jd, profile, nonce: Date.now() })
+  function pickJob(jd: string, picked?: UserProfile | null) {
+    if (picked) setProfile(picked)
+    setSeed({ jd, profile: picked ?? profile, nonce: Date.now() })
     setTab("pipeline")
   }
 
@@ -29,9 +32,11 @@ export default function App() {
           <TabBtn active={tab === "pipeline"} onClick={() => setTab("pipeline")}>投遞包工作台</TabBtn>
         </nav>
         {/* 三個分頁都保持掛載，只切換顯示，避免切分頁時遺失狀態（職缺清單／投遞包成品） */}
-        <div className={tab === "search" ? "" : "hidden"}><JobSearchView onPick={pickJob} /></div>
-        <div className={tab === "resume" ? "" : "hidden"}><ResumeHealthView /></div>
-        <div className={tab === "pipeline" ? "" : "hidden"}><PipelineView seed={seed} onBack={() => setTab("search")} /></div>
+        <div className={tab === "search" ? "" : "hidden"}><JobSearchView onPick={pickJob} onProfile={setProfile} /></div>
+        <div className={tab === "resume" ? "" : "hidden"}><ResumeHealthView onProfile={setProfile} /></div>
+        <div className={tab === "pipeline" ? "" : "hidden"}>
+          <PipelineView seed={seed} fallbackProfile={profile} onBack={() => setTab("search")} />
+        </div>
       </div>
     </div>
   )

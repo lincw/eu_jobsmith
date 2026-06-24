@@ -8,7 +8,10 @@ import {
 
 type Phase = "idle" | "running" | "approval" | "done"
 
-export function PipelineView({ seed, onBack }: { seed?: Seed | null; onBack?: () => void }) {
+export function PipelineView(
+  { seed, fallbackProfile, onBack }:
+  { seed?: Seed | null; fallbackProfile?: UserProfile | null; onBack?: () => void },
+) {
   const [jd, setJd] = useState("")
   const [phase, setPhase] = useState<Phase>("idle")
   const [status, setStatus] = useState("")
@@ -17,6 +20,7 @@ export function PipelineView({ seed, onBack }: { seed?: Seed | null; onBack?: ()
   const [threadId, setThreadId] = useState("")
   const [revisions, setRevisions] = useState(0)
   const [nodeErrors, setNodeErrors] = useState<{ node: string; message: string }[]>([])
+  const [profileWarning, setProfileWarning] = useState("")
   const [error, setError] = useState("")
 
   function handle(ev: any) {
@@ -28,6 +32,8 @@ export function PipelineView({ seed, onBack }: { seed?: Seed | null; onBack?: ()
       if (ev.node === "critic" && ev.data?.revision_count) setRevisions(ev.data.revision_count)
     } else if (ev.type === "node_error") {
       setNodeErrors((e) => [...e, { node: ev.node, message: ev.message }])
+    } else if (ev.type === "profile_warning") {
+      setProfileWarning(ev.message)
     } else if (ev.type === "interrupt") {
       setThreadId(ev.thread_id); setPhase("approval"); setStatus("待人工核可")
     } else if (ev.type === "done") {
@@ -39,12 +45,14 @@ export function PipelineView({ seed, onBack }: { seed?: Seed | null; onBack?: ()
 
   async function run(jdText: string = jd, profile?: UserProfile | null) {
     if (!jdText.trim()) return
-    setError(""); setNodeErrors([]); setDone([]); setState({}); setRevisions(0)
+    // 手動開跑（無 seed）時改用共用的真實履歷；都沒有才讓後端用範例 demo 並提醒。
+    const effectiveProfile = profile ?? fallbackProfile ?? null
+    setError(""); setNodeErrors([]); setProfileWarning(""); setDone([]); setState({}); setRevisions(0)
     setPhase("running"); setStatus("啟動中…")
     try {
       const resp = await fetch("/api/run", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jd_text: jdText, profile: profile ?? null }),
+        body: JSON.stringify({ jd_text: jdText, profile: effectiveProfile }),
       })
       await readSSE(resp, handle)
       setPhase((p) => (p === "approval" ? p : "done"))
@@ -115,6 +123,11 @@ export function PipelineView({ seed, onBack }: { seed?: Seed | null; onBack?: ()
           <AgentTrace done={done} running={phase === "running"} revisions={revisions} status={status} />
         </aside>
         <main className="space-y-4">
+          {profileWarning && (
+            <div className="border-2 border-amber-300 bg-amber-50 rounded-xl p-3 text-sm text-amber-800">
+              ⚠️ {profileWarning}
+            </div>
+          )}
           {phase === "approval" && (
             <div className="no-print border-2 border-indigo-300 bg-indigo-50 rounded-xl p-4 flex flex-wrap items-center gap-3">
               <span className="text-sm font-medium">這份投遞包要核可嗎？</span>
