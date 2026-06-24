@@ -1,6 +1,6 @@
 import { useState } from "react"
 import type { ChangeEvent } from "react"
-import type { JobMatch, UserProfile } from "../types"
+import type { JobMatch, UserProfile, SkillGapReport } from "../types"
 import { readSSE } from "../sse"
 import { SAMPLE_RESUME } from "../sampleResume"
 import { Card } from "../ui/Card"
@@ -8,7 +8,7 @@ import { Button } from "../ui/Button"
 import { Badge } from "../ui/Badge"
 import { Skeleton } from "../ui/Skeleton"
 import { EmptyState } from "../ui/EmptyState"
-import { Search, Upload, Loader2, ExternalLink, Sparkles, AlertTriangle, CheckCircle2, XCircle, ChevronLeft, ChevronRight } from "../ui/icons"
+import { Search, Upload, Loader2, ExternalLink, Sparkles, AlertTriangle, CheckCircle2, XCircle, ChevronLeft, ChevronRight, Target } from "../ui/icons"
 
 const PAGE_SIZE = 8
 
@@ -48,10 +48,11 @@ export function JobSearchView(
   const [fallback, setFallback] = useState(false)
   const [error, setError] = useState("")
   const [page, setPage] = useState(1)
+  const [skillGap, setSkillGap] = useState<SkillGapReport | null>(null)
 
   async function go(form: FormData) {
     setBusy(true); setDone(false); setError(""); setJobs([]); setQueries([]); setSources([])
-    setLinkedin(""); setProfile(null); setBlockedNote(""); setFallback(false); setPage(1)
+    setLinkedin(""); setProfile(null); setBlockedNote(""); setFallback(false); setPage(1); setSkillGap(null)
     setStatus("上傳中…")
     try {
       const resp = await fetch("/api/jobs/auto", { method: "POST", body: form })
@@ -74,6 +75,7 @@ export function JobSearchView(
           })
         else if (ev.type === "all_blocked") setBlockedNote(ev.message)
         else if (ev.type === "jobs") { setJobs(ev.data as JobMatch[]); setFallback(Boolean(ev.fallback)) }
+        else if (ev.type === "skill_gap") setSkillGap(ev.data as SkillGapReport)
         else if (ev.type === "linkedin") setLinkedin(ev.url)
         else if (ev.type === "error") setError(ev.message)
         else if (ev.type === "done") setDone(true)
@@ -157,6 +159,44 @@ export function JobSearchView(
           <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />{blockedNote}
         </div>
       )}
+
+      {skillGap && skillGap.top_demand.length > 0 && (() => {
+        const max = skillGap.top_demand[0].count || 1
+        return (
+          <Card className="p-5 mb-4">
+            <h3 className="font-bold mb-3 flex items-center gap-2 text-slate-900">
+              <span className="grid place-items-center w-7 h-7 rounded-lg bg-brand-50 text-brand-600"><Target className="w-4 h-4" /></span>
+              技能缺口分析
+            </h3>
+            {skillGap.your_gaps.length > 0 && (
+              <>
+                <p className="text-sm font-medium mb-1.5 text-slate-700">你最該補的技能（市場在要、你還沒有）</p>
+                <div className="flex flex-wrap gap-1.5 mb-3">
+                  {skillGap.your_gaps.slice(0, 12).map((g, i) => (
+                    <Badge key={i} tone="rose">{g.skill} ×{g.count}</Badge>
+                  ))}
+                </div>
+              </>
+            )}
+            <p className="text-sm font-medium mb-1.5 text-slate-700">市場熱門技能</p>
+            <div className="space-y-1.5">
+              {skillGap.top_demand.slice(0, 8).map((d, i) => {
+                const has = skillGap.have.some((h) => h.toLowerCase() === d.skill.toLowerCase())
+                return (
+                  <div key={i} className="flex items-center gap-2 text-sm">
+                    <span className="w-28 shrink-0 truncate text-slate-600">{d.skill}</span>
+                    <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div className={`h-full rounded-full ${has ? "bg-emerald-500" : "bg-brand-500"}`}
+                        style={{ width: `${(d.count / max) * 100}%` }} />
+                    </div>
+                    <span className="w-6 text-right text-slate-400 text-xs">{d.count}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </Card>
+        )
+      })()}
 
       {jobs.length > 0 && (
         <div className="flex items-center justify-between mb-3">

@@ -157,6 +157,19 @@ class SearchResult(BaseModel):
     error: str | None = None
 
 
+class SkillCount(BaseModel):
+    """技能 + 在搜到職缺中的需求次數。"""
+    skill: str
+    count: int = 0
+
+
+class SkillGapReport(BaseModel):
+    """技能缺口市場分析（純彙整搜到職缺的 requirements）。"""
+    top_demand: list[SkillCount] = Field(default_factory=list, description="市場最常要求的技能")
+    your_gaps: list[SkillCount] = Field(default_factory=list, description="你還沒有、但市場在要的技能")
+    have: list[str] = Field(default_factory=list, description="你已具備且市場有在要的技能")
+
+
 class InterviewQuestion(BaseModel):
     """多輪面試模擬的單一題目。"""
     category: str = Field(default="", description="技術 / 行為 / 台灣特有")

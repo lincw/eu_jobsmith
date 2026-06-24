@@ -199,6 +199,10 @@ def jobs_auto(
             matches = rank_jobs(profile, all_jobs, top_k=None)  # 不設限，全部排序回傳（前端分頁）
             yield _sse({"type": "jobs", "data": [m.model_dump() for m in matches],
                         "fallback": used_fallback})
+            from app.agents.skill_gap import analyze_skill_gap
+            gap = analyze_skill_gap(profile, all_jobs)
+            if gap.top_demand:
+                yield _sse({"type": "skill_gap", "data": gap.model_dump()})
             yield _sse({"type": "linkedin", "url": linkedin_search_url(queries[0] if queries else "")})
             yield _sse({"type": "done"})
         except Exception as exc:  # LLM/網路錯誤：友善降級
