@@ -16,6 +16,26 @@ def test_gap_and_demand():
     assert "Python" in rep.have
 
 
+def test_skill_owned_as_substring_not_a_gap():
+    # 履歷寫「AI 工程師」「LLM 應用」，職缺要求「AI」「LLM」應算已具備、不列缺口。
+    jobs = [JobPosting(source="x", title="t", company="c", url="u",
+                       requirements=["AI", "LLM", "Kubernetes"])]
+    prof = Profile(name="a", summary="", skills=["AI 工程師", "LLM 應用"], raw_text="")
+    rep = analyze_skill_gap(prof, jobs)
+    gaps = {g.skill for g in rep.your_gaps}
+    assert "AI" not in gaps and "LLM" not in gaps      # 已具備
+    assert "Kubernetes" in gaps                         # 真的缺
+    assert "AI" in rep.have and "LLM" in rep.have
+
+
+def test_short_ascii_skill_uses_word_boundary():
+    # 「ai」不應誤中含 ai 的無關字（rail / domain）。
+    jobs = [JobPosting(source="x", title="t", company="c", url="u", requirements=["AI"])]
+    prof = Profile(name="a", summary="", skills=["Rails", "domain driven design"], raw_text="")
+    rep = analyze_skill_gap(prof, jobs)
+    assert {g.skill for g in rep.your_gaps} == {"AI"}   # 仍算缺口（沒被 rails/domain 誤判）
+
+
 def test_case_insensitive_and_empty():
     jobs = [JobPosting(source="x", title="t", company="c", url="u", requirements=["python", ""])]
     prof = Profile(name="a", summary="", skills=["PYTHON"], raw_text="")
