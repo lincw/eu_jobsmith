@@ -8,7 +8,9 @@ import { Button } from "../ui/Button"
 import { Badge } from "../ui/Badge"
 import { Skeleton } from "../ui/Skeleton"
 import { EmptyState } from "../ui/EmptyState"
-import { Search, Upload, Loader2, ExternalLink, Sparkles, AlertTriangle, CheckCircle2, XCircle } from "../ui/icons"
+import { Search, Upload, Loader2, ExternalLink, Sparkles, AlertTriangle, CheckCircle2, XCircle, ChevronLeft, ChevronRight } from "../ui/icons"
+
+const PAGE_SIZE = 8
 
 const SRC_LABEL: Record<string, string> = {
   "104": "104", yourator: "Yourator", linkedin: "LinkedIn", cake: "Cake", sample: "範例",
@@ -45,10 +47,11 @@ export function JobSearchView(
   const [blockedNote, setBlockedNote] = useState("")
   const [fallback, setFallback] = useState(false)
   const [error, setError] = useState("")
+  const [page, setPage] = useState(1)
 
   async function go(form: FormData) {
     setBusy(true); setDone(false); setError(""); setJobs([]); setQueries([]); setSources([])
-    setLinkedin(""); setProfile(null); setBlockedNote(""); setFallback(false)
+    setLinkedin(""); setProfile(null); setBlockedNote(""); setFallback(false); setPage(1)
     setStatus("上傳中…")
     try {
       const resp = await fetch("/api/jobs/auto", { method: "POST", body: form })
@@ -202,7 +205,7 @@ export function JobSearchView(
       )}
 
       <div className="space-y-3">
-        {jobs.map((m, i) => (
+        {jobs.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((m, i) => (
           <Card key={i} interactive className="p-4 flex flex-col sm:flex-row gap-4 animate-fade-in-up">
             <FitBadge score={m.fit_score} />
             <div className="flex-1 min-w-0">
@@ -233,6 +236,24 @@ export function JobSearchView(
           </Card>
         ))}
       </div>
+
+      {jobs.length > PAGE_SIZE && (() => {
+        const totalPages = Math.ceil(jobs.length / PAGE_SIZE)
+        return (
+          <div className="flex items-center justify-center gap-1.5 mt-5">
+            <Button variant="secondary" size="sm" icon={ChevronLeft}
+              disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>上一頁</Button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
+              <button key={n} onClick={() => setPage(n)}
+                className={`w-8 h-8 rounded-lg text-sm transition ${
+                  n === page ? "bg-brand-600 text-white" : "text-slate-600 hover:bg-slate-100"
+                }`}>{n}</button>
+            ))}
+            <Button variant="secondary" size="sm" onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}>下一頁<ChevronRight className="w-4 h-4" /></Button>
+          </div>
+        )
+      })()}
     </div>
   )
 }

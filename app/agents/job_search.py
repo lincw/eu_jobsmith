@@ -60,10 +60,19 @@ def derive_queries(profile: Profile) -> list[str]:
     return ["工程師"]
 
 
-def rank_jobs(profile: Profile, jobs: list[JobPosting], top_k: int = 12) -> list[JobMatch]:
-    """以一次 LLM 呼叫對所有職缺評分排序（standard 分層）。"""
+_RANK_INPUT_MAX = 50  # 送 LLM 排序的職缺上限（控 prompt 大小/成本）；超出者不送排序
+
+
+def rank_jobs(profile: Profile, jobs: list[JobPosting], top_k: int | None = None) -> list[JobMatch]:
+    """以一次 LLM 呼叫對職缺評分排序（standard 分層）。
+
+    top_k=None（預設）回傳全部排序結果（不截斷，由前端分頁）；為控 prompt，最多送
+    _RANK_INPUT_MAX 筆給 LLM 排序，超出部分以 fit_score=0 附在後面。
+    """
     if not jobs:
         return []
+    ranked_pool, overflow = jobs[:_RANK_INPUT_MAX], jobs[_RANK_INPUT_MAX:]
+    jobs = ranked_pool
     listing = "\n".join(
         f"[{i}] {j.title} @ {j.company}｜{j.location or ''}｜{(j.snippet or '')[:120]}"
         for i, j in enumerate(jobs)
@@ -82,4 +91,6 @@ def rank_jobs(profile: Profile, jobs: list[JobPosting], top_k: int = 12) -> list
         else:
             matches.append(JobMatch(job=job, fit_score=0, reason="未評分"))
     matches.sort(key=lambda m: m.fit_score, reverse=True)
-    return matches[:top_k]
+    # 超出排序上限的職缺仍保留（附在後面、未評分），確保「不設限」顯示全部
+    matches.extend(JobMatch(job=j, fit_score=0, reason="未評分") for j in overflow)
+    return matches if top_k is None else matches[:top_k]

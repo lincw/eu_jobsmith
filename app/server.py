@@ -171,9 +171,9 @@ def jobs_auto(
             seen: set[str] = set()
             all_jobs = []
             all_blocked = True
-            for q in queries[:2]:
+            for q in queries[:3]:
                 yield _sse({"type": "progress", "step": "search", "message": f"搜尋「{q}」中…"})
-                for res in search_all(q, limit=10):
+                for res in search_all(q, limit=15):
                     if not res.blocked:
                         all_blocked = False
                     yield _sse({"type": "source", "source": res.source,
@@ -196,7 +196,7 @@ def jobs_auto(
 
             yield _sse({"type": "progress", "step": "rank",
                         "message": f"依履歷排序 {len(all_jobs)} 筆職缺…"})
-            matches = rank_jobs(profile, all_jobs, top_k=12)
+            matches = rank_jobs(profile, all_jobs, top_k=None)  # 不設限，全部排序回傳（前端分頁）
             yield _sse({"type": "jobs", "data": [m.model_dump() for m in matches],
                         "fallback": used_fallback})
             yield _sse({"type": "linkedin", "url": linkedin_search_url(queries[0] if queries else "")})

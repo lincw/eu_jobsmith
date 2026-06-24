@@ -35,3 +35,33 @@ def test_rank_jobs_sorts_desc_and_maps(monkeypatch):
 
 def test_rank_jobs_empty_returns_empty():
     assert mod.rank_jobs(Profile(name="x", summary="y", raw_text="z"), []) == []
+
+
+def _ranker(n):
+    return FakeLLM(mod._RankResult(rankings=[
+        mod._RankItem(index=i, fit_score=100 - i, reason="r") for i in range(n)
+    ]))
+
+
+def _jobs(n):
+    return [JobPosting(source="x", title=f"j{i}", company="c", url=f"u{i}") for i in range(n)]
+
+
+def test_rank_jobs_no_cap(monkeypatch):
+    monkeypatch.setattr(mod, "get_llm", lambda tier, **k: _ranker(20))
+    out = mod.rank_jobs(Profile(name="王", summary="後端", raw_text="…"), _jobs(20), top_k=None)
+    assert len(out) == 20                              # 不再截在 12
+    assert out[0].fit_score >= out[-1].fit_score       # 已排序
+
+
+def test_rank_jobs_overflow_kept(monkeypatch):
+    n = mod._RANK_INPUT_MAX + 8
+    monkeypatch.setattr(mod, "get_llm", lambda tier, **k: _ranker(mod._RANK_INPUT_MAX))
+    out = mod.rank_jobs(Profile(name="王", summary="後端", raw_text="…"), _jobs(n), top_k=None)
+    assert len(out) == n                               # 超出排序上限者仍保留
+
+
+def test_rank_jobs_explicit_top_k(monkeypatch):
+    monkeypatch.setattr(mod, "get_llm", lambda tier, **k: _ranker(20))
+    out = mod.rank_jobs(Profile(name="王", summary="後端", raw_text="…"), _jobs(20), top_k=5)
+    assert len(out) == 5
