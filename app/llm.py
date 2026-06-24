@@ -1,13 +1,22 @@
-"""依 LLM_BACKEND 建立 LLM（介面一致：.with_structured_output(...).invoke(...)）。"""
-import os
+"""依 LLM_BACKEND 建立 LLM（介面一致：.with_structured_output(...).invoke(...)）。
 
+支援後端：
+- claude_cli / codex_cli：本機 CLI 訂閱（免 API key、不吃額度）——使用者可在 UI 切換（主要）。
+- anthropic：API key（雲端/部署用，可選）。
+"""
 from app import settings
 from app.settings import get_model
 
 
 def get_llm(tier: str, *, temperature: float = 0, max_tokens: int = 2000):
-    """依分層與後端回傳設定好的 chat model（含重試）。"""
-    backend = settings.LLM_BACKEND
+    """依分層與『當前後端』回傳設定好的 chat model（含重試）。"""
+    backend = settings.current_backend()
+    if backend == "claude_cli":
+        from app.llm_cli import ClaudeCLIChat, CLAUDE_TIER_MODELS
+        return ClaudeCLIChat(CLAUDE_TIER_MODELS[tier], max_tokens=max_tokens)
+    if backend == "codex_cli":
+        from app.llm_cli import CodexCLIChat
+        return CodexCLIChat(tier, max_tokens=max_tokens)
     if backend == "anthropic":
         from langchain_anthropic import ChatAnthropic
         return ChatAnthropic(
@@ -16,20 +25,4 @@ def get_llm(tier: str, *, temperature: float = 0, max_tokens: int = 2000):
             max_tokens=max_tokens,
             max_retries=4,
         )
-    if backend == "qianfan":
-        from langchain_openai import ChatOpenAI
-        return ChatOpenAI(
-            base_url=settings.QIANFAN_BASE_URL,
-            api_key=os.environ.get("QIANFAN_API_KEY", "missing"),
-            model=settings.QIANFAN_MODEL_TIERS[tier],
-            temperature=temperature,
-            max_tokens=max_tokens,
-            max_retries=4,
-        )
-    if backend == "claude_cli":
-        from app.llm_cli import ClaudeCLIChat, CLAUDE_TIER_MODELS
-        return ClaudeCLIChat(CLAUDE_TIER_MODELS[tier], max_tokens=max_tokens)
-    if backend == "codex_cli":
-        from app.llm_cli import CodexCLIChat
-        return CodexCLIChat(tier, max_tokens=max_tokens)
     raise ValueError(f"unknown LLM_BACKEND: {backend!r}")

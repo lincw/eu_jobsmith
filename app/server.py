@@ -1,15 +1,17 @@
 """FastAPI：以 SSE 串流跑反思迴圈圖，並用 HTTP 處理 human-in-the-loop。"""
 import json
+import os
+import shutil
 import uuid
 from pathlib import Path
 
 from fastapi import FastAPI, File, Form, UploadFile
-from fastapi.responses import StreamingResponse, HTMLResponse
+from fastapi.responses import StreamingResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from langgraph.types import Command
 
-from app import telemetry
+from app import settings, telemetry
 from app.cli import load_profile
 from app.graph import build_graph
 from app.models import Profile
@@ -23,7 +25,6 @@ app = FastAPI(title="台灣 AI 求職 Co-pilot")
 # 單一圖實例：/run 與 /resume 共用同一個 MemorySaver（per-process）。
 GRAPH = build_graph()
 
-_WEB_DIR = Path(__file__).parent / "web"
 _ROOT = Path(__file__).parent.parent  # 專案根（app/ 的上一層）
 _FRONTEND_DIST = _ROOT / "frontend" / "dist"  # Vite 建置產物（產品級前端）
 if (_FRONTEND_DIST / "assets").is_dir():
@@ -210,6 +211,43 @@ def sample():
     return {"jd_text": jd}
 
 
+def _backend_available(name: str) -> bool:
+    """偵測該後端是否可用：CLI 看執行檔在不在 PATH；anthropic 看有沒有金鑰。"""
+    if name == "claude_cli":
+        return bool(os.environ.get("CLAUDE_CLI_PATH") or shutil.which("claude"))
+    if name == "codex_cli":
+        return bool(os.environ.get("CODEX_CLI_PATH") or shutil.which("codex"))
+    if name == "anthropic":
+        return bool(os.environ.get("ANTHROPIC_API_KEY"))
+    return False
+
+
+@app.get("/api/backend")
+def get_backend():
+    """目前作用中的 LLM 後端與可選清單（供 UI 切換 Claude Code CLI / Codex CLI）。"""
+    return {
+        "current": settings.current_backend(),
+        "options": [
+            {"id": b, "label": settings.BACKEND_LABELS.get(b, b), "available": _backend_available(b)}
+            for b in settings.SUPPORTED_BACKENDS
+        ],
+    }
+
+
+class BackendBody(BaseModel):
+    backend: str
+
+
+@app.post("/api/backend")
+def post_backend(body: BackendBody):
+    """切換 LLM 後端（執行期，單人本機）。後續每個 agent 呼叫即採用新後端。"""
+    try:
+        settings.set_backend(body.backend)
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+    return {"current": settings.current_backend()}
+
+
 def _resolve_profile(body: RunBody) -> Profile:
     """優先用使用者真實履歷；缺省才退回 demo profile。"""
     if body.profile:
@@ -269,12 +307,6 @@ def index():
     dist_index = _FRONTEND_DIST / "index.html"
     if dist_index.exists():
         return dist_index.read_text(encoding="utf-8")
-    return (_WEB_DIR / "index.html").read_text(encoding="utf-8")
-
-
-@app.get("/classic", response_class=HTMLResponse)
-def classic():
-    """舊版『看得見的多 agent 編排』頁：完整投遞包流程
-    （解析→匹配→公司情報→履歷∥求職信∥面試→品管反思迴圈→人工核可），
-    直接打 /api/run 與 /api/resume 跑既有 LangGraph 8-agent 圖。"""
-    return (_WEB_DIR / "index.html").read_text(encoding="utf-8")
+    return HTMLResponse(
+        "<h1>前端尚未建置</h1><p>請先執行 <code>cd frontend &amp;&amp; npm install &amp;&amp; npm run build</code>，"
+        "再重新整理。</p>", status_code=503)

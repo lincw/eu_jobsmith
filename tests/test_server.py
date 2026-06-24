@@ -244,6 +244,28 @@ def test_jobs_auto_emits_profile_event(monkeypatch):
     assert prof["data"]["raw_text"] == "我的履歷原文 Python"  # 含原文供 pipeline 帶入
 
 
+def test_get_backend_lists_cli_options():
+    client = TestClient(server_mod.app)
+    r = client.get("/api/backend")
+    assert r.status_code == 200
+    data = r.json()
+    ids = [o["id"] for o in data["options"]]
+    assert "claude_cli" in ids and "codex_cli" in ids
+    assert "current" in data
+    assert all("available" in o and "label" in o for o in data["options"])
+
+
+def test_post_backend_switches_and_rejects_unsupported():
+    client = TestClient(server_mod.app)
+    try:
+        ok = client.post("/api/backend", json={"backend": "codex_cli"})
+        assert ok.status_code == 200 and ok.json()["current"] == "codex_cli"
+        bad = client.post("/api/backend", json={"backend": "qianfan"})
+        assert bad.status_code == 400
+    finally:
+        client.post("/api/backend", json={"backend": "claude_cli"})  # 還原
+
+
 def test_index_serves_html():
     client = TestClient(server_mod.app)
     r = client.get("/")
