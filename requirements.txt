@@ -14,3 +14,4 @@ pypdf>=4.0
 python-docx>=1.1
 python-multipart>=0.0.9
 beautifulsoup4>=4.12
+pywebview>=5.0  # 桌面 App 原生視窗（desktop.py）；純伺服器/CLI 模式可不裝

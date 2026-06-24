@@ -26,3 +26,16 @@
 開瀏覽器到 http://localhost:8000 → 「載入範例」→「開始」→ 看左欄 agent 即時編排、右欄成品分頁 → 出現「核可／不核可」→ 按下後流程完成。
 
 （要真的跑出內容需先在 `.env` 設好後端與金鑰，例如 `LLM_BACKEND=qianfan` + `QIANFAN_API_KEY=...`。）
+
+## 桌面 App（原生視窗，不用開瀏覽器）
+本機跑、用你自己的 Claude Code / Codex CLI 訂閱（免 API key）。雙擊即開一個原生視窗：
+
+1. 建置前端（產生 `frontend/dist`，桌面視窗會載入它）：
+   ```
+   cd frontend && npm install && npm run build
+   ```
+2. 安裝桌面相依（含 `pywebview`）：`.venv\Scripts\python.exe -m pip install -r requirements.txt`
+3. 雙擊 `desktop.bat`（或 `.venv\Scripts\python.exe desktop.py`）。
+
+備註：Windows 需有 WebView2 執行階段（Win11 內建）。若 8000 埠被佔用會自動改用空閒埠。
+這仍是本機執行——遠端網站無法使用你本機的 CLI 訂閱；要做雲端版本需改用 API key 後端。
