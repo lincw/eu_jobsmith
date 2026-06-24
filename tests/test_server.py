@@ -285,6 +285,40 @@ def test_post_backend_switches_and_rejects_unsupported():
         client.post("/api/backend", json={"backend": "claude_cli"})  # 還原
 
 
+def test_backend_test_reports_success(monkeypatch):
+    monkeypatch.setattr(server_mod, "_backend_available", lambda name: True)
+    monkeypatch.setattr(server_mod, "_probe_claude", lambda: "你好")
+    client = TestClient(server_mod.app)
+    r = client.post("/api/backend/test", json={"backend": "claude_cli"})
+    assert r.status_code == 200 and r.json()["ok"] is True
+
+
+def test_backend_test_unavailable_skips_probe(monkeypatch):
+    monkeypatch.setattr(server_mod, "_backend_available", lambda name: False)
+    called = {"n": 0}
+    monkeypatch.setattr(server_mod, "_probe_claude", lambda: called.__setitem__("n", 1) or "你好")
+    client = TestClient(server_mod.app)
+    r = client.post("/api/backend/test", json={"backend": "claude_cli"})
+    assert r.status_code == 200 and r.json()["ok"] is False
+    assert called["n"] == 0  # 不可用就不該真的去打 CLI
+
+
+def test_backend_test_rejects_unsupported():
+    client = TestClient(server_mod.app)
+    r = client.post("/api/backend/test", json={"backend": "qianfan"})
+    assert r.status_code == 400
+
+
+def test_backend_test_reports_failure_on_probe_error(monkeypatch):
+    monkeypatch.setattr(server_mod, "_backend_available", lambda name: True)
+    def boom():
+        raise RuntimeError("not logged in")
+    monkeypatch.setattr(server_mod, "_probe_claude", boom)
+    client = TestClient(server_mod.app)
+    r = client.post("/api/backend/test", json={"backend": "claude_cli"})
+    assert r.status_code == 200 and r.json()["ok"] is False
+
+
 def test_index_serves_html():
     client = TestClient(server_mod.app)
     r = client.get("/")

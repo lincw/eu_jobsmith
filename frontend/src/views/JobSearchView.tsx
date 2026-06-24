@@ -52,6 +52,8 @@ export function JobSearchView(
   // 公司名單（選填）：除了 AI 自動找，使用者可加入想盯的公司，一起併入推薦結果。
   const [companies, setCompanies] = useState<string[]>([])
   const [companyInput, setCompanyInput] = useState("")
+  // 上傳的履歷檔：先存著，等使用者按「開始」才送（不再上傳即自動找）。
+  const [file, setFile] = useState<File | null>(null)
 
   function addCompany(name: string) {
     const n = name.trim()
@@ -113,13 +115,21 @@ export function JobSearchView(
     }
   }
 
-  function onSubmitText() {
-    if (!text.trim()) { setError("請先貼上或載入履歷文字"); return }
-    const form = new FormData(); form.append("resume_text", text); go(form)
+  // 按「開始自動找職缺」：有上傳檔就送檔，否則送貼上的文字。上傳檔本身不會自動開跑。
+  function onStart() {
+    const form = new FormData()
+    if (file) {
+      form.append("file", file)
+    } else if (text.trim()) {
+      form.append("resume_text", text)
+    } else {
+      setError("請先貼上履歷文字，或上傳履歷檔案"); return
+    }
+    go(form)
   }
   function onFile(e: ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]; if (!f) return
-    const form = new FormData(); form.append("file", f); go(form); e.target.value = ""
+    setFile(f); setError(""); e.target.value = ""
   }
 
   function pick(m: JobMatch) {
@@ -140,15 +150,25 @@ export function JobSearchView(
     <div>
       <Card className="p-5 mb-5">
         <p className="text-sm text-slate-600 mb-2">
-          丟上你的履歷，AI 自動推導關鍵字、搜尋 104 / Yourator / Cake 並依履歷排序；
-          也可加入想去的公司，一起看看有沒有相關開缺。
+          丟上你的履歷，AI 自動推導關鍵字、搜尋 104 / Yourator / LinkedIn / Cake 並依履歷排序；
+          也可加入想去的公司，一起看看有沒有相關開缺。填好後按「開始自動找職缺」。
         </p>
         <textarea
-          className="w-full border border-slate-300 rounded-lg p-3 text-sm h-32 focus:outline-none focus:ring-2 focus:ring-brand-200"
-          placeholder="貼上履歷文字…"
+          className="w-full border border-slate-300 rounded-lg p-3 text-sm h-32 focus:outline-none focus:ring-2 focus:ring-brand-200 disabled:bg-slate-50"
+          placeholder="貼上履歷文字…（或用下方上傳履歷檔案）"
           value={text}
           onChange={(e) => setText(e.target.value)}
+          disabled={!!file}
         />
+        {file && (
+          <div className="mt-2 inline-flex items-center gap-2 bg-brand-50 text-brand-700 rounded-lg px-3 py-1.5 text-sm">
+            <Upload className="w-3.5 h-3.5" />已選擇檔案：{file.name}
+            <button type="button" onClick={() => setFile(null)} aria-label="移除已選檔案"
+              className="rounded hover:bg-brand-100 p-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-300">
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+        )}
 
         <div className="mt-4">
           <label className="text-sm font-medium text-slate-700 mb-1.5 flex items-center gap-1.5">
@@ -171,7 +191,7 @@ export function JobSearchView(
               onBlur={() => addCompany(companyInput)}
               disabled={busy}
               aria-label="新增公司名稱"
-              placeholder={companies.length ? "再加一間…" : "例：Google、華碩、台積電（打字後按 Enter 加入）"}
+              placeholder={companies.length ? "再加一間…" : "請填寫公司名並按下 Enter"}
               className="flex-1 min-w-[10rem] bg-transparent text-sm py-0.5 focus:outline-none disabled:opacity-50"
             />
           </div>
@@ -179,8 +199,8 @@ export function JobSearchView(
         </div>
 
         <div className="flex flex-wrap gap-2 mt-4 items-center">
-          <Button onClick={onSubmitText} loading={busy} icon={Search}>開始自動找職缺</Button>
-          <Button variant="secondary" onClick={() => setText(SAMPLE_RESUME)} disabled={busy}>載入範例履歷</Button>
+          <Button onClick={onStart} loading={busy} icon={Search}>開始自動找職缺</Button>
+          <Button variant="secondary" onClick={() => { setFile(null); setText(SAMPLE_RESUME) }} disabled={busy}>載入範例履歷</Button>
           <label className={`inline-flex items-center gap-2 px-4 py-2 text-sm rounded-lg font-medium border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition cursor-pointer focus-within:ring-2 focus-within:ring-brand-300 ${busy ? "opacity-50 pointer-events-none" : ""}`}>
             <Upload className="w-4 h-4" />上傳檔案（PDF/DOCX/TXT）
             <input type="file" accept=".pdf,.docx,.txt" className="sr-only" onChange={onFile} disabled={busy} />
@@ -203,7 +223,7 @@ export function JobSearchView(
             {sources.map((s, i) => (
               <span key={i} className={`inline-flex items-center gap-1 ${s.blocked ? "text-slate-400" : "text-emerald-600"}`}>
                 {s.blocked ? <XCircle className="w-3 h-3" /> : <CheckCircle2 className="w-3 h-3" />}
-                {SRC_LABEL[s.source] || s.source}{s.blocked ? " 略過" : ` ${s.count}`}
+                {SRC_LABEL[s.source] || s.source}{s.blocked ? " 暫無" : ` ${s.count}`}
               </span>
             ))}
           </div>

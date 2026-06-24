@@ -7,6 +7,7 @@ import { InterviewView } from "./views/InterviewView"
 import { HistoryView } from "./views/HistoryView"
 import { PreferencesView } from "./views/PreferencesView"
 import { BackendSelector } from "./components/BackendSelector"
+import { Onboarding } from "./components/Onboarding"
 import { Sidebar } from "./ui/Sidebar"
 import type { NavItem } from "./ui/Sidebar"
 import { Compass, FileChartColumn, Workflow, MessagesSquare, Archive, Settings2 } from "./ui/icons"
@@ -28,6 +29,9 @@ export default function App() {
   // 使用者真實履歷（自動找職缺解析後共用），讓「投遞包工作台」分頁手動開跑也能用本人背景。
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [preferences, setPreferences] = useState<Preferences>({})
+  // 開場引導：第一次使用先選 AI 後端並測試連線；確認過後記在 localStorage 不再跳出。
+  const [showOnboard, setShowOnboard] = useState(
+    () => localStorage.getItem("copilot.backend.confirmed") !== "1")
 
   // 開 app 載入記憶：有最近履歷則自動帶入（免重傳）、套用偏好。
   useEffect(() => {
@@ -46,8 +50,14 @@ export default function App() {
     setTab("pipeline")
   }
 
+  function finishOnboard() {
+    localStorage.setItem("copilot.backend.confirmed", "1")
+    setShowOnboard(false)
+  }
+
   return (
     <div className="min-h-screen flex">
+      {showOnboard && <Onboarding onDone={finishOnboard} />}
       <Sidebar items={NAV} active={tab} onSelect={setTab} footer={FOOTER} />
       <div className="flex-1 min-w-0">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">

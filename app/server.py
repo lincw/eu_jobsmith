@@ -351,6 +351,42 @@ def post_backend(body: BackendBody):
     return {"current": settings.current_backend()}
 
 
+def _probe_claude() -> str:
+    from app.llm_cli import _run_claude
+    return _run_claude("只回覆兩個字：你好", "haiku", timeout=90)
+
+
+def _probe_codex() -> str:
+    from app.llm_cli import _run_codex
+    return _run_codex("只回覆兩個字：你好")
+
+
+@app.post("/api/backend/test")
+def test_backend(body: BackendBody):
+    """實測指定後端是否能連線（真的跑一次極短的 CLI 呼叫），供開場引導畫面顯示連線狀態。
+
+    不改動目前作用中的後端——測試與切換分開，測失敗不會把使用者切到壞掉的後端。
+    """
+    name = body.backend
+    if name not in settings.SUPPORTED_BACKENDS:
+        return JSONResponse({"ok": False, "message": "不支援的後端"}, status_code=400)
+    if not _backend_available(name):
+        return {"ok": False, "message": "找不到對應的 CLI 或金鑰，請確認已安裝並登入。"}
+    try:
+        if name == "claude_cli":
+            out = _probe_claude()
+        elif name == "codex_cli":
+            out = _probe_codex()
+        else:  # anthropic
+            from langchain_anthropic import ChatAnthropic
+            out = ChatAnthropic(model=settings.get_model("cheap"), max_tokens=50).invoke(
+                [("human", "只回覆兩個字：你好")]).content
+        ok = bool((out or "").strip())
+        return {"ok": ok, "message": "連線成功" if ok else "回覆為空，請重試。"}
+    except Exception as e:  # noqa: BLE001 — 任何 CLI/網路錯誤都回友善訊息
+        return {"ok": False, "message": f"連線失敗（{type(e).__name__}），請確認 CLI 已登入。"}
+
+
 class InterviewStartBody(BaseModel):
     jd_text: str
     profile: dict | None = None
