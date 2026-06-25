@@ -45,5 +45,8 @@ export {
   Trash2,
   Layers,
   MapPin,
+  KeyRound,
+  Check,
+  CircleDot,
   X,
 } from "lucide-react"

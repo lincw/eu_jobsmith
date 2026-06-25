@@ -351,11 +351,13 @@ def export_docx(pkg: dict = Body(...)):
 
 
 def _backend_available(name: str) -> bool:
-    """偵測該後端是否可用：CLI 看執行檔在不在 PATH；anthropic 看有沒有金鑰。"""
+    """偵測該後端是否可用：CLI 看執行檔在不在 PATH；openai 看有金鑰或 base_url；anthropic 看金鑰。"""
     if name == "claude_cli":
         return bool(os.environ.get("CLAUDE_CLI_PATH") or shutil.which("claude"))
     if name == "codex_cli":
         return bool(os.environ.get("CODEX_CLI_PATH") or shutil.which("codex"))
+    if name == "openai":  # 有金鑰，或有 base_url（如 Ollama / LM Studio 本機免金鑰）即可
+        return bool(settings.byok_api_key() or settings.byok_base_url())
     if name == "anthropic":
         return bool(os.environ.get("ANTHROPIC_API_KEY"))
     return False
@@ -363,13 +365,19 @@ def _backend_available(name: str) -> bool:
 
 @app.get("/api/backend")
 def get_backend():
-    """目前作用中的 LLM 後端與可選清單（供 UI 切換 Claude Code CLI / Codex CLI）。"""
+    """目前作用中的 LLM 後端、可選清單、各 CLI 模型選項、以及 BYOK 設定狀態（供右上角控制台）。"""
     return {
         "current": settings.current_backend(),
         "options": [
-            {"id": b, "label": settings.BACKEND_LABELS.get(b, b), "available": _backend_available(b)}
+            {"id": b, "label": settings.BACKEND_LABELS.get(b, b),
+             "available": _backend_available(b), "kind": settings.BACKEND_KIND.get(b, "api")}
             for b in settings.SUPPORTED_BACKENDS
         ],
+        "cli_models": {
+            b: {"choices": settings.CLI_MODEL_CHOICES[b], "current": settings.cli_model(b)}
+            for b in settings.CLI_MODEL_CHOICES
+        },
+        "byok": settings.byok_public(),
     }
 
 
@@ -379,12 +387,40 @@ class BackendBody(BaseModel):
 
 @app.post("/api/backend")
 def post_backend(body: BackendBody):
-    """切換 LLM 後端（執行期，單人本機）。後續每個 agent 呼叫即採用新後端。"""
+    """切換 LLM 後端（執行期，單人本機）。選了即生效，不以測試結果為門檻。"""
     try:
         settings.set_backend(body.backend)
     except ValueError as e:
         return JSONResponse({"error": str(e)}, status_code=400)
     return {"current": settings.current_backend()}
+
+
+class CliModelBody(BaseModel):
+    backend: str
+    model: str
+
+
+@app.post("/api/backend/model")
+def post_backend_model(body: CliModelBody):
+    """設定某本機 CLI 後端要用的模型（'auto' = 自動分層）。"""
+    try:
+        settings.set_cli_model(body.backend, body.model)
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+    return {"backend": body.backend, "model": settings.cli_model(body.backend)}
+
+
+class ByokBody(BaseModel):
+    base_url: str = ""
+    api_key: str = ""
+    model: str = ""
+
+
+@app.post("/api/backend/byok")
+def post_backend_byok(body: ByokBody):
+    """儲存 BYOK（OpenAI 相容）設定並寫回 .env；api_key 留空則保留既有金鑰。"""
+    settings.set_byok(body.base_url, body.api_key, body.model)
+    return {"byok": settings.byok_public()}
 
 
 # 連線測試：用最輕的模型（haiku）+ 最短提示，只求拿到任何回覆，盡快完成。
@@ -405,6 +441,18 @@ def _probe_codex() -> str:
                       extra_args=["-c", 'model_reasoning_effort="low"'])
 
 
+def _probe_openai() -> str:
+    """用目前 BYOK 設定（base_url + key + model）跑一次極短呼叫。"""
+    from langchain_openai import ChatOpenAI
+    kwargs = {"model": settings.byok_model() or "gpt-4o-mini",
+              "max_tokens": 50, "max_retries": 1, "timeout": _PROBE_TIMEOUT}
+    if settings.byok_base_url():
+        kwargs["base_url"] = settings.byok_base_url()
+    if settings.byok_api_key():
+        kwargs["api_key"] = settings.byok_api_key()
+    return ChatOpenAI(**kwargs).invoke([("human", _PROBE_PROMPT)]).content
+
+
 @app.post("/api/backend/test")
 def test_backend(body: BackendBody):
     """實測指定後端是否能連線（真的跑一次極短的 CLI 呼叫），供開場引導畫面顯示連線狀態。
@@ -421,6 +469,8 @@ def test_backend(body: BackendBody):
             out = _probe_claude()
         elif name == "codex_cli":
             out = _probe_codex()
+        elif name == "openai":
+            out = _probe_openai()
         else:  # anthropic
             from langchain_anthropic import ChatAnthropic
             out = ChatAnthropic(model=settings.get_model("cheap"), max_tokens=50).invoke(

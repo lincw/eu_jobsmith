@@ -319,6 +319,54 @@ def test_backend_test_reports_failure_on_probe_error(monkeypatch):
     assert r.status_code == 200 and r.json()["ok"] is False
 
 
+def test_get_backend_includes_byok_and_cli_models():
+    client = TestClient(server_mod.app)
+    d = client.get("/api/backend").json()
+    ids = [o["id"] for o in d["options"]]
+    assert "openai" in ids                                 # BYOK 後端也列出
+    assert all("kind" in o for o in d["options"])          # 帶後端類型
+    assert d["cli_models"]["claude_cli"]["current"] == "auto"
+    assert "auto" in d["cli_models"]["claude_cli"]["choices"]
+    assert "has_key" in d["byok"]                          # 不外洩金鑰本身
+
+
+def test_post_backend_model_sets_and_rejects():
+    client = TestClient(server_mod.app)
+    try:
+        ok = client.post("/api/backend/model", json={"backend": "claude_cli", "model": "sonnet"})
+        assert ok.status_code == 200 and ok.json()["model"] == "sonnet"
+        bad = client.post("/api/backend/model", json={"backend": "anthropic", "model": "x"})
+        assert bad.status_code == 400                      # 非 CLI 後端不可選模型
+    finally:
+        client.post("/api/backend/model", json={"backend": "claude_cli", "model": "auto"})
+
+
+def test_post_backend_byok_saves(monkeypatch):
+    from pathlib import Path
+    env = Path("_byok_server_test.env")
+    env.unlink(missing_ok=True)
+    monkeypatch.setenv("COPILOT_ENV_FILE", str(env))
+    client = TestClient(server_mod.app)
+    try:
+        r = client.post("/api/backend/byok", json={
+            "base_url": "https://api.groq.com/openai/v1", "api_key": "gsk_secret", "model": "llama-3.3-70b"})
+        assert r.status_code == 200
+        b = r.json()["byok"]
+        assert b["base_url"].endswith("/v1") and b["model"].startswith("llama") and b["has_key"] is True
+        assert "api_key" not in b                              # 回應不含真實金鑰
+        assert "OPENAI_API_KEY=gsk_secret" in env.read_text(encoding="utf-8")
+    finally:
+        env.unlink(missing_ok=True)
+
+
+def test_backend_test_openai_probe(monkeypatch):
+    monkeypatch.setattr(server_mod, "_backend_available", lambda name: True)
+    monkeypatch.setattr(server_mod, "_probe_openai", lambda: "你好")
+    client = TestClient(server_mod.app)
+    r = client.post("/api/backend/test", json={"backend": "openai"})
+    assert r.status_code == 200 and r.json()["ok"] is True
+
+
 def test_index_serves_html():
     client = TestClient(server_mod.app)
     r = client.get("/")

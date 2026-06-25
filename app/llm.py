@@ -13,10 +13,24 @@ def get_llm(tier: str, *, temperature: float = 0, max_tokens: int = 2000):
     backend = settings.current_backend()
     if backend == "claude_cli":
         from app.llm_cli import ClaudeCLIChat, CLAUDE_TIER_MODELS
-        return ClaudeCLIChat(CLAUDE_TIER_MODELS[tier], max_tokens=max_tokens)
+        choice = settings.cli_model("claude_cli")
+        model = CLAUDE_TIER_MODELS[tier] if choice == "auto" else choice
+        return ClaudeCLIChat(model, max_tokens=max_tokens)
     if backend == "codex_cli":
         from app.llm_cli import CodexCLIChat
-        return CodexCLIChat(tier, max_tokens=max_tokens)
+        choice = settings.cli_model("codex_cli")
+        return CodexCLIChat(tier, max_tokens=max_tokens,
+                            model=None if choice == "auto" else choice)
+    if backend == "openai":
+        # BYOK：OpenAI 相容端點（OpenAI / DeepSeek / Gemini / Ollama / vLLM…）。
+        from langchain_openai import ChatOpenAI
+        kwargs = dict(model=settings.byok_model() or "gpt-4o-mini",
+                      temperature=temperature, max_tokens=max_tokens, max_retries=4)
+        if settings.byok_base_url():
+            kwargs["base_url"] = settings.byok_base_url()
+        if settings.byok_api_key():
+            kwargs["api_key"] = settings.byok_api_key()
+        return ChatOpenAI(**kwargs)
     if backend == "anthropic":
         from langchain_anthropic import ChatAnthropic
         return ChatAnthropic(

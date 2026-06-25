@@ -231,23 +231,32 @@ def _run_codex(prompt: str, timeout: int = _TIMEOUT, extra_args: list[str] | Non
 
 
 class _CodexStructured:
-    def __init__(self, schema):
+    def __init__(self, schema, extra_args=None):
         self._schema = schema
+        self._extra = extra_args
 
     def invoke(self, messages):
-        return _structured_loop(_run_codex, self._schema, messages)
+        return _structured_loop(
+            lambda prompt: _run_codex(prompt, extra_args=self._extra), self._schema, messages)
 
 
 class CodexCLIChat:
-    """相容 LangChain 介面的 Codex CLI 後端（使用 codex 設定的預設模型）。"""
+    """相容 LangChain 介面的 Codex CLI 後端。
 
-    def __init__(self, tier: str = "standard", max_tokens: int = 2000):
+    model=None 時用 codex 自身設定的預設模型；指定 model 時以 -c model=... 覆寫。
+    """
+
+    def __init__(self, tier: str = "standard", max_tokens: int = 2000, model: str | None = None):
         self.tier = tier
         self.max_tokens = max_tokens
+        self.model = model
+
+    def _extra(self) -> list[str] | None:
+        return ["-c", f'model="{self.model}"'] if self.model else None
 
     def with_structured_output(self, schema):
-        return _CodexStructured(schema)
+        return _CodexStructured(schema, self._extra())
 
     def invoke(self, messages):
         system, human = _messages_to_prompt(messages)
-        return _run_codex(f"{system}\n\n{human}")
+        return _run_codex(f"{system}\n\n{human}", extra_args=self._extra())

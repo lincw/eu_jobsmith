@@ -1,4 +1,5 @@
 import importlib
+from pathlib import Path
 
 import app.settings as settings_mod
 import app.llm as llm_mod
@@ -54,6 +55,69 @@ def test_codex_cli_backend_selected(monkeypatch):
     from app.llm_cli import CodexCLIChat
     llm = m.get_llm("standard")
     assert isinstance(llm, CodexCLIChat)
+
+
+def test_openai_backend_selected(monkeypatch):
+    monkeypatch.setenv("LLM_BACKEND", "openai")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    monkeypatch.setenv("OPENAI_MODEL", "deepseek-chat")
+    monkeypatch.setenv("OPENAI_BASE_URL", "https://api.deepseek.com/v1")
+    importlib.reload(settings_mod)
+    importlib.reload(llm_mod)
+    from langchain_openai import ChatOpenAI
+    llm = llm_mod.get_llm("standard")
+    assert isinstance(llm, ChatOpenAI)
+    assert getattr(llm, "model_name", getattr(llm, "model", None)) == "deepseek-chat"
+
+
+def test_claude_cli_model_override(monkeypatch):
+    m = _reload(monkeypatch, "claude_cli")
+    settings_mod.set_cli_model("claude_cli", "sonnet")
+    assert m.get_llm("deep").model == "sonnet"      # 固定模型蓋過 deep=opus
+    settings_mod.set_cli_model("claude_cli", "auto")
+    assert m.get_llm("deep").model == "opus"         # auto 還原自動分層
+
+
+def test_codex_cli_model_override(monkeypatch):
+    m = _reload(monkeypatch, "codex_cli")
+    settings_mod.set_cli_model("codex_cli", "gpt-5-codex")
+    llm = m.get_llm("standard")
+    assert llm.model == "gpt-5-codex"
+    assert llm._extra() == ["-c", 'model="gpt-5-codex"']
+    settings_mod.set_cli_model("codex_cli", "auto")
+    assert m.get_llm("standard").model is None       # auto = 用 codex 自身預設
+
+
+def test_set_cli_model_rejects_non_cli(monkeypatch):
+    import pytest
+    _reload(monkeypatch, "claude_cli")
+    with pytest.raises(ValueError):
+        settings_mod.set_cli_model("anthropic", "x")
+
+
+def test_set_byok_persists_to_env(monkeypatch):
+    # 用 CWD 本地暫存檔（本機 AppData\Temp 受限，tmp_path fixture 在此會 PermissionError）
+    env = Path("_byok_settings_test.env")
+    env.unlink(missing_ok=True)
+    monkeypatch.setenv("COPILOT_ENV_FILE", str(env))
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
+    monkeypatch.delenv("OPENAI_MODEL", raising=False)
+    importlib.reload(settings_mod)
+    try:
+        settings_mod.set_byok("https://api.x.com/v1", "sk-secret", "gpt-4o-mini")
+        txt = env.read_text(encoding="utf-8")
+        assert "OPENAI_BASE_URL=https://api.x.com/v1" in txt
+        assert "OPENAI_API_KEY=sk-secret" in txt
+        assert "OPENAI_MODEL=gpt-4o-mini" in txt
+        pub = settings_mod.byok_public()
+        assert pub["has_key"] is True and "api_key" not in pub   # 不外洩金鑰
+        # 空 api_key 不清掉既有金鑰
+        settings_mod.set_byok("https://api.x.com/v1", "", "gpt-4o")
+        assert settings_mod.byok_api_key() == "sk-secret"
+        assert settings_mod.byok_model() == "gpt-4o"
+    finally:
+        env.unlink(missing_ok=True)
 
 
 def test_research_structured_none_for_non_cli(monkeypatch):

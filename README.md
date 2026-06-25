@@ -71,14 +71,15 @@ desktop.bat          # launch as a native desktop window (recommended)
 
 ## LLM Backends
 
-The app runs on your **local CLI subscription** — no API key, no per-token cost:
+Pick your AI engine from the **top-right control panel** — a **local CLI subscription** (no API key) or **BYOK** (any OpenAI-compatible endpoint). Selecting a backend takes effect immediately; the **Test** button is an optional connection check, never a gate. Local CLIs have a **rescan** action and a **selectable model**.
 
-| Backend      | Auth                     | Notes                                              |
-| ------------ | ------------------------ | -------------------------------------------------- |
-| `claude_cli` | Claude Code subscription | **Default.** No API key; strips `ANTHROPIC_*` env. |
-| `codex_cli`  | Codex subscription       | Uses your configured Codex model.                  |
+| Backend      | Auth                                   | Notes                                                                                                    |
+| ------------ | -------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `claude_cli` | Claude Code subscription               | **Default.** No API key; strips `ANTHROPIC_*` env. Model selectable (auto-tiered by default).            |
+| `codex_cli`  | Codex subscription                     | No API key. Model selectable; defaults to your Codex config.                                             |
+| `openai`     | BYOK — any OpenAI-compatible endpoint  | `base_url` + `api_key` + `model`. Works with OpenAI, DeepSeek, Gemini, Groq, OpenRouter, Ollama, LM Studio, vLLM… |
 
-CLI subscriptions run **locally** and bind to the logged-in CLI on your machine, so your résumé never leaves your computer. An API-key backend (`anthropic`) also exists for self-hosting or CI, but isn't needed for normal use.
+CLI subscriptions run **locally** and bind to the logged-in CLI on your machine, so your résumé never leaves your computer. BYOK credentials are written only to your local `.env` and never transmitted. An API-key backend (`anthropic`) also exists for self-hosting or CI.
 
 ## Architecture
 
@@ -93,7 +94,7 @@ React SPA (Vite)  ──HTTP/SSE──►  FastAPI
                   │
                   ▼
           Pluggable LLM backend
-          claude_cli · codex_cli
+          claude_cli · codex_cli · openai (BYOK)
 ```
 
 - A LangGraph `StateGraph` orchestrates the agents; `SqliteSaver` persists checkpoints and powers the human-in-the-loop approval gate via `interrupt()` / `Command(resume=…)`.
@@ -106,7 +107,12 @@ React SPA (Vite)  ──HTTP/SSE──►  FastAPI
 Does the Supervisor reflection loop (Critic → revise un-passed documents → re-critique) actually improve output quality? A small golden set of 5 job/résumé pairs is run with reflection **off** (no revisions) and **on**, and the resulting Critic scores are compared:
 
 <!-- EVAL:START -->
-_Run `python -m app.evals.harness` to generate the numbers below._
+| Reflection | Critic pass rate | Mean quality score |
+| ---------- | ---------------- | ------------------ |
+| Off        | 60% (3/5)        | 85.6               |
+| **On**     | **100% (5/5)**   | **87.5**           |
+
+Reflection lifts the Critic pass rate by **+40pp** (60% → 100%) and mean quality by **+1.9** (85.6 → 87.5) across the 5 golden cases. Both "off" failures were cover letters making **unverified company claims** or an **unsupported experience claim** — exactly what the Critic → revise loop catches. _(One harness run; LLM calls are non-deterministic, so exact numbers vary run to run.)_
 <!-- EVAL:END -->
 
 ```bash
@@ -121,7 +127,7 @@ The `summarize()` step is a pure function with its own unit tests, so the aggreg
 | -------- | ------------------------------------------------------------------------ |
 | Backend  | Python, FastAPI, LangGraph, LangChain, Pydantic v2, SQLite, BeautifulSoup |
 | Frontend | React 19, TypeScript, Vite, Tailwind CSS, lucide-react                    |
-| LLM      | Claude Code CLI / Codex CLI (local subscription)                         |
+| LLM      | Claude Code CLI / Codex CLI (local) · any OpenAI-compatible endpoint (BYOK) |
 | Desktop  | pywebview (native window over the local server)                          |
 
 ## Project Structure

@@ -120,6 +120,6 @@ def test_run_claude_raises_on_error_envelope(monkeypatch):
 
 
 def test_codex_structured_parses(monkeypatch):
-    monkeypatch.setattr(cli, "_run_codex", lambda prompt: '{"name": "c", "score": 5}')
+    monkeypatch.setattr(cli, "_run_codex", lambda prompt, extra_args=None: '{"name": "c", "score": 5}')
     out = cli.CodexCLIChat().with_structured_output(Toy).invoke([("human", "h")])
     assert out.name == "c" and out.score == 5

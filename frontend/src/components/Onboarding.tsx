@@ -74,8 +74,8 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         <div className="mb-5"><Brand /></div>
         <h1 className="text-lg font-bold text-slate-900 mb-1">先選擇你的 AI 後端</h1>
         <p className="text-sm text-slate-500 mb-4">
-          本工具用你本機的 CLI 訂閱當 AI 引擎（免 API key）。選一個並測試連線，確認可用再開始；
-          之後也能在右上角隨時切換。
+          本工具用你本機的 CLI 訂閱當 AI 引擎（免 API key）。選一個就能開始；想確認可先「測試連線」（非必須）。
+          之後也能在右上角隨時切換，或改用 OpenAI 相容（BYOK）。
         </p>
 
         <div className="space-y-2.5">
@@ -118,7 +118,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
             icon={testing ? undefined : Cpu}>
             {testing ? "測試中…" : "測試連線"}
           </Button>
-          <Button onClick={start} loading={starting} disabled={!result?.ok || testing} icon={ArrowRight}>
+          <Button onClick={start} loading={starting} disabled={!selected || testing} icon={ArrowRight}>
             開始使用
           </Button>
           <button type="button" onClick={onDone}
