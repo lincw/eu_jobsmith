@@ -261,6 +261,17 @@ def test_registry_search_all_passes_pages(monkeypatch):
     assert seen["area"] == ["6001001000"]          # area 也應下傳給來源
 
 
+def test_all_real_sources_accept_area_param():
+    # 回歸：search_all 以位置參數傳 (keywords, limit, pages, area) 給每個來源；
+    # 任一來源的 search() 漏掉 area，每次搜尋都會丟 TypeError → 被當成 blocked
+    # （LinkedIn 曾因此每次都顯示「暫無」）。確保所有真實來源都吃得下 area。
+    import inspect
+    from app.sources import registry
+    for name, fn in registry.SEARCHABLE.items():
+        params = list(inspect.signature(fn).parameters)
+        assert "area" in params, f"{name} 的 search() 缺少 area 參數（會被 search_all 當成 blocked）"
+
+
 def test_linkedin_search_url():
     from app.sources.registry import linkedin_search_url
     url = linkedin_search_url("AI 工程師")
