@@ -28,6 +28,7 @@ const FOOTER: NavItem<Tab>[] = [{ id: "settings", label: "個人化", icon: Sett
 export default function App() {
   const [tab, setTab] = useState<Tab>("search")
   const [seed, setSeed] = useState<Seed | null>(null)
+  const [interviewSeed, setInterviewSeed] = useState<Seed | null>(null)
   // 使用者真實履歷（自動找職缺解析後共用），讓「投遞包工作台」分頁手動開跑也能用本人背景。
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [preferences, setPreferences] = useState<Preferences>({})
@@ -50,6 +51,12 @@ export default function App() {
     if (picked) setProfile(picked)
     setSeed({ jd, profile: picked ?? profile, nonce: Date.now() })
     setTab("pipeline")
+  }
+
+  // 從「我的投遞包」用該份 JD + 履歷直接開面試模擬。
+  function startInterview(jd: string, picked?: UserProfile | null) {
+    setInterviewSeed({ jd, profile: picked ?? profile, nonce: Date.now() })
+    setTab("interview")
   }
 
   function finishOnboard() {
@@ -81,10 +88,10 @@ export default function App() {
             <PipelineView seed={seed} fallbackProfile={profile} preferences={preferences} onBack={() => setTab("search")} />
           </div>
           <div className={tab === "interview" ? "" : "hidden"}>
-            <InterviewView fallbackProfile={profile} />
+            <InterviewView fallbackProfile={profile} seed={interviewSeed} />
           </div>
           <div className={tab === "history" ? "" : "hidden"}>
-            <HistoryView active={tab === "history"} onReopen={pickJob} />
+            <HistoryView active={tab === "history"} onReopen={pickJob} onInterview={startInterview} />
           </div>
           <div className={tab === "settings" ? "" : "hidden"}>
             <PreferencesView value={preferences} onSave={setPreferences} />

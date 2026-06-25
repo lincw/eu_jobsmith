@@ -1,5 +1,5 @@
-import { useState } from "react"
-import type { UserProfile, InterviewQuestion, AnswerFeedback, InterviewSummary } from "../types"
+import { useEffect, useRef, useState } from "react"
+import type { UserProfile, InterviewQuestion, AnswerFeedback, InterviewSummary, Seed } from "../types"
 import { Card } from "../ui/Card"
 import { Button } from "../ui/Button"
 import { Badge } from "../ui/Badge"
@@ -7,7 +7,10 @@ import { EmptyState } from "../ui/EmptyState"
 import { ScoreRing } from "../components/ScoreRing"
 import { MessagesSquare, CheckCircle2, AlertTriangle, RefreshCw, ArrowRight } from "../ui/icons"
 
-export function InterviewView({ fallbackProfile }: { fallbackProfile?: UserProfile | null }) {
+export function InterviewView(
+  { fallbackProfile, seed }:
+  { fallbackProfile?: UserProfile | null; seed?: Seed | null },
+) {
   const [jd, setJd] = useState("")
   const [phase, setPhase] = useState<"idle" | "running" | "done">("idle")
   const [questions, setQuestions] = useState<InterviewQuestion[]>([])
@@ -18,19 +21,22 @@ export function InterviewView({ fallbackProfile }: { fallbackProfile?: UserProfi
   const [summary, setSummary] = useState<InterviewSummary | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
+  // 本場面試實際使用的履歷（種子帶入的投遞包履歷，或共用的 fallback）；start() 時固定下來。
+  const activeProfile = useRef<UserProfile | null>(fallbackProfile ?? null)
 
   async function loadSample() {
     const j = await (await fetch("/api/sample")).json()
     setJd(j.jd_text)
   }
 
-  async function start() {
-    if (!jd.trim()) { setError("請先貼上或載入職缺 JD"); return }
+  async function start(jdText: string = jd, prof: UserProfile | null = fallbackProfile ?? null) {
+    if (!jdText.trim()) { setError("請先貼上或載入職缺 JD"); return }
+    activeProfile.current = prof
     setBusy(true); setError(""); setSummary(null); setFeedback(null); setTranscript([]); setIdx(0)
     try {
       const r = await fetch("/api/interview/start", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jd_text: jd, profile: fallbackProfile ?? null }),
+        body: JSON.stringify({ jd_text: jdText, profile: prof }),
       })
       const d = await r.json()
       if (!r.ok) { setError(d.error || "啟動失敗"); return }
@@ -52,7 +58,7 @@ export function InterviewView({ fallbackProfile }: { fallbackProfile?: UserProfi
       const q = questions[idx]
       const r = await fetch("/api/interview/answer", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jd_text: jd, question: q.question, answer, profile: fallbackProfile ?? null }),
+        body: JSON.stringify({ jd_text: jd, question: q.question, answer, profile: activeProfile.current }),
       })
       const d = await r.json()
       if (!r.ok) { setError(d.error || "評分失敗"); return }
@@ -92,6 +98,13 @@ export function InterviewView({ fallbackProfile }: { fallbackProfile?: UserProfi
     setFeedback(null); setTranscript([]); setSummary(null); setError("")
   }
 
+  // 從「我的投遞包」帶 JD + 該投遞包的履歷進來 → 自動開始面試（由 seed.nonce 外部訊號觸發）。
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (seed?.jd) { setJd(seed.jd); start(seed.jd, seed.profile ?? fallbackProfile ?? null) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seed?.nonce])
+
   // ---- idle：輸入 JD ----
   if (phase === "idle") {
     return (
@@ -103,7 +116,7 @@ export function InterviewView({ fallbackProfile }: { fallbackProfile?: UserProfi
             placeholder="貼上職缺 JD 文字…" value={jd} onChange={(e) => setJd(e.target.value)}
           />
           <div className="flex flex-wrap gap-2 mt-3">
-            <Button onClick={start} loading={busy} icon={MessagesSquare}>開始面試</Button>
+            <Button onClick={() => start()} loading={busy} icon={MessagesSquare}>開始面試</Button>
             <Button variant="secondary" onClick={loadSample} disabled={busy}>載入範例 JD</Button>
           </div>
           {error && <p className="text-sm text-rose-600 mt-2">{error}</p>}

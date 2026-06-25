@@ -8,7 +8,7 @@ import { EmptyState } from "../ui/EmptyState"
 import {
   MatchCard, CompanyCard, ResumeDoc, CoverLetterDoc, InterviewKitDoc, CritiqueCard,
 } from "../components/pipeline/Documents"
-import { Archive, Trash2, ArrowLeft, FileDown, Printer, Workflow } from "../ui/icons"
+import { Archive, Trash2, ArrowLeft, FileDown, Printer, Workflow, MessagesSquare } from "../ui/icons"
 
 interface PkgSummary {
   id: number; created_at: string; job_title: string; company: string; match_score: number; approved: number
@@ -23,8 +23,12 @@ function fmtDate(iso: string) {
 }
 
 export function HistoryView(
-  { active, onReopen }:
-  { active: boolean; onReopen: (jd: string, profile?: UserProfile | null) => void },
+  { active, onReopen, onInterview }:
+  {
+    active: boolean
+    onReopen: (jd: string, profile?: UserProfile | null) => void
+    onInterview: (jd: string, profile?: UserProfile | null) => void
+  },
 ) {
   const [list, setList] = useState<PkgSummary[]>([])
   const [detail, setDetail] = useState<PackageDetail | null>(null)
@@ -83,6 +87,8 @@ export function HistoryView(
         <div className="no-print flex flex-wrap gap-2 mb-4">
           <Button variant="secondary" icon={Workflow}
             onClick={() => onReopen(detail.jd_text || "", detail.profile ?? null)}>重新開啟到工作台</Button>
+          <Button variant="secondary" icon={MessagesSquare}
+            onClick={() => onInterview(detail.jd_text || "", detail.profile ?? null)}>用這份做面試模擬</Button>
           <Button variant="secondary" icon={FileDown} onClick={() => downloadDocx(p)}>下載 Word</Button>
           <Button variant="secondary" icon={Printer} onClick={() => window.print()}>列印 / 匯出 PDF</Button>
         </div>
