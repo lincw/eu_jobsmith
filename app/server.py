@@ -3,8 +3,10 @@ import json
 import os
 import shutil
 import threading
+import traceback
 import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime
 from pathlib import Path
 
 from fastapi import FastAPI, File, Form, UploadFile, Body
@@ -44,6 +46,24 @@ _ROOT = Path(__file__).parent.parent  # 專案根（app/ 的上一層）
 _FRONTEND_DIST = _ROOT / "frontend" / "dist"  # Vite 建置產物（產品級前端）
 if (_FRONTEND_DIST / "assets").is_dir():
     app.mount("/assets", StaticFiles(directory=str(_FRONTEND_DIST / "assets")), name="assets")
+
+_ERROR_LOG = _ROOT / "data" / "error.log"
+
+
+def _err_detail(exc: Exception) -> str:
+    """回傳「類別: 訊息(截斷)」供前端顯示，並把完整 traceback 落地到 data/error.log（盡力而為）。
+
+    視窗版 exe 沒有 console，否則錯誤細節會直接消失、無從診斷。只印類別名稱（如「RuntimeError」）
+    無法分辨真正原因（CLI 找不到／rc≠0／回報錯誤／結構化解析失敗 是完全不同的問題）。
+    """
+    try:
+        _ERROR_LOG.parent.mkdir(parents=True, exist_ok=True)
+        with _ERROR_LOG.open("a", encoding="utf-8") as f:
+            f.write(f"\n===== {datetime.now().isoformat(timespec='seconds')} =====\n")
+            f.write("".join(traceback.format_exception(type(exc), exc, exc.__traceback__)))
+    except Exception:
+        pass  # 寫日誌失敗不可影響回應
+    return f"{type(exc).__name__}: {str(exc)[:300]}"
 
 
 def serialize_update(update: dict) -> dict:
@@ -135,7 +155,7 @@ def _run_pipeline_bg(run: "_Run", initial: dict, config: dict, graph) -> None:
         _history.update_package_result(run.package_id, final)
         run.emit({"type": "done", "package_id": run.package_id})
     except Exception as exc:  # noqa: BLE001 — 背景出錯也要收尾，不讓那筆永遠卡「進行中」
-        run.emit({"type": "error", "message": f"{type(exc).__name__}: {str(exc)[:200]}"})
+        run.emit({"type": "error", "message": _err_detail(exc)})
         try:
             _history.set_status(run.package_id, "failed")
         except Exception:
@@ -189,7 +209,7 @@ def resume_evaluate(
             yield _sse({"type": "done"})
         except Exception as exc:  # LLM 後端 429/額度/截斷等：回傳友善訊息而非中斷串流
             yield _sse({"type": "error",
-                        "message": f"AI 服務暫時無法使用，請稍後再試。（{type(exc).__name__}）"})
+                        "message": f"AI 服務暫時無法使用，請稍後再試。（{_err_detail(exc)}）"})
 
     return StreamingResponse(gen(), media_type="text/event-stream")
 
@@ -334,7 +354,7 @@ def jobs_auto(
             yield _sse({"type": "done"})
         except Exception as exc:  # LLM/網路錯誤：友善降級
             yield _sse({"type": "error",
-                        "message": f"AI 服務暫時無法使用，請稍後再試。（{type(exc).__name__}）"})
+                        "message": f"AI 服務暫時無法使用，請稍後再試。（{_err_detail(exc)}）"})
 
     return StreamingResponse(gen(), media_type="text/event-stream")
 
@@ -572,7 +592,7 @@ def interview_start(body: InterviewStartBody):
         profile = _resolve_profile(body)
         qs = generate_questions(body.jd_text, profile, n=body.n)
     except Exception as exc:  # noqa: BLE001
-        return JSONResponse({"error": f"AI 服務暫時無法使用，請稍後再試。（{type(exc).__name__}）"},
+        return JSONResponse({"error": f"AI 服務暫時無法使用，請稍後再試。（{_err_detail(exc)}）"},
                             status_code=400)
     return {"questions": [q.model_dump() for q in qs]}
 
@@ -584,7 +604,7 @@ def interview_answer(body: InterviewAnswerBody):
         profile = _resolve_profile(body)
         fb = evaluate_answer(body.question, body.answer, body.jd_text, profile)
     except Exception as exc:  # noqa: BLE001
-        return JSONResponse({"error": f"AI 服務暫時無法使用，請稍後再試。（{type(exc).__name__}）"},
+        return JSONResponse({"error": f"AI 服務暫時無法使用，請稍後再試。（{_err_detail(exc)}）"},
                             status_code=400)
     return fb.model_dump()
 
@@ -606,7 +626,7 @@ def pipeline_chat(body: PipelineChatBody):
         profile = _resolve_profile(body)
         res = refine_document(body.doc_type, body.current, body.messages, body.jd_text, profile)
     except Exception as exc:  # noqa: BLE001
-        return JSONResponse({"error": f"AI 服務暫時無法使用，請稍後再試。（{type(exc).__name__}）"},
+        return JSONResponse({"error": f"AI 服務暫時無法使用，請稍後再試。（{_err_detail(exc)}）"},
                             status_code=400)
     if body.doc_type == "resume":
         updated = (None if res.updated_summary is None and res.updated_bullets is None
@@ -623,7 +643,7 @@ def interview_summary(body: InterviewSummaryBody):
     try:
         s = summarize(body.jd_text, body.transcript)
     except Exception as exc:  # noqa: BLE001
-        return JSONResponse({"error": f"AI 服務暫時無法使用，請稍後再試。（{type(exc).__name__}）"},
+        return JSONResponse({"error": f"AI 服務暫時無法使用，請稍後再試。（{_err_detail(exc)}）"},
                             status_code=400)
     return s.model_dump()
 
@@ -672,7 +692,7 @@ def run(body: RunBody):
         profile = _apply_preferences(profile, body.preferences)
     except Exception as exc:  # noqa: BLE001
         return JSONResponse(
-            {"error": f"履歷資料無法使用，請重新上傳履歷再試。（{type(exc).__name__}）"},
+            {"error": f"履歷資料無法使用，請重新上傳履歷再試。（{_err_detail(exc)}）"},
             status_code=400)
 
     thread_id = uuid.uuid4().hex

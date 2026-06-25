@@ -10,6 +10,16 @@ from app import graph as graph_mod
 from app import server as server_mod
 
 
+def test_err_detail_surfaces_real_reason(monkeypatch):
+    # 視窗版 exe 沒 console：只印類別名稱（RuntimeError）無從診斷，必須帶出真正訊息。
+    # 日誌寫檔是 best-effort（自帶 try/except），故導向不可寫路徑也不能讓回傳壞掉。
+    monkeypatch.setattr(server_mod, "_ERROR_LOG", server_mod.Path("?:/nope/error.log"))
+    detail = server_mod._err_detail(RuntimeError("claude CLI 失敗（rc=1）：model not available"))
+    assert detail.startswith("RuntimeError: ")
+    assert "claude CLI 失敗" in detail
+    assert "model not available" in detail
+
+
 def _patch_agents(monkeypatch):
     monkeypatch.setattr(graph_mod, "parse_job",
                         lambda jd_text: ParsedJob(title="AI 工程師", company="未來智能"))

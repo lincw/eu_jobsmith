@@ -105,8 +105,10 @@ def _structured_loop(run_prompt, schema, messages):
     base = f"{system}\n\n{human}\n\n{_schema_instruction(schema)}"
     prompt = base
     last_err = None
+    last_raw = ""
     for _ in range(_MAX_TRIES):
         raw = run_prompt(prompt)
+        last_raw = raw
         try:
             return _parse_into(schema, raw)
         except ValidationError as exc:
@@ -115,7 +117,10 @@ def _structured_loop(run_prompt, schema, messages):
         except json.JSONDecodeError as exc:
             last_err = exc
             prompt = base + "\n\n（上次輸出不是合法 JSON，請只輸出一個合法 JSON 物件，不要任何其他文字）"
-    raise RuntimeError(f"CLI 結構化輸出解析失敗：{last_err}") from last_err
+    # 帶上『最後一次實際輸出』片段，方便診斷 codex/claude 到底吐了什麼導致解析失敗。
+    raise RuntimeError(
+        f"CLI 結構化輸出解析失敗：{last_err}；最後輸出：{(last_raw or '').strip()[:200]!r}"
+    ) from last_err
 
 
 # ---------------------------------------------------------------------------
@@ -148,7 +153,14 @@ def _run_claude(prompt: str, model: str, allowed_tools: list[str] | None = None,
     )
     if proc.returncode != 0:
         raise RuntimeError(f"claude CLI 失敗（rc={proc.returncode}）：{(proc.stderr or '')[:300]}")
-    envelope = json.loads(proc.stdout)
+    try:
+        # 用 _extract_json 容忍 stdout 夾雜的橫幅/更新提示等非 JSON 雜訊；仍失敗就丟出帶
+        # 『實際 stdout』的 RuntimeError，避免只看到無解的 JSONDecodeError（同事就卡在這）。
+        envelope = json.loads(_extract_json(proc.stdout))
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(
+            "claude CLI 未輸出 JSON（--output-format json 失效或夾雜其他輸出）："
+            f"{(proc.stdout or '').strip()[:300]!r}") from exc
     if envelope.get("is_error"):
         raise RuntimeError(f"claude CLI 回報錯誤：{envelope.get('result')}")
     _record_usage(envelope)

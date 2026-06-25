@@ -145,6 +145,34 @@ def test_run_claude_strips_null_bytes_from_prompt(monkeypatch):
     assert all("\x00" not in a for a in seen["args"])
 
 
+def test_run_claude_tolerates_noise_around_json_envelope(monkeypatch):
+    # claude CLI 偶爾在 --output-format json 的 JSON 前後夾橫幅/更新提示，直接 json.loads 會炸；
+    # 用 _extract_json 把 envelope 抽出來才穩。
+    class FakeProc:
+        returncode = 0
+        stdout = "⚠ update available\n" + json.dumps({"is_error": False, "result": "答案"}) + "\nbye"
+        stderr = ""
+
+    monkeypatch.setattr(cli.subprocess, "run", lambda args, **kw: FakeProc())
+    monkeypatch.setattr(cli.shutil, "which", lambda name: "claude")
+    assert cli._run_claude("hi", "haiku") == "答案"
+
+
+def test_run_claude_raises_clear_error_on_non_json(monkeypatch):
+    # stdout 完全不是 JSON（如要求重新登入）時，要丟帶『實際 stdout』的 RuntimeError，
+    # 而非無解的 JSONDecodeError——這正是同事 claude 端「JSON decode error」看不出原因的痛點。
+    class FakeProc:
+        returncode = 0
+        stdout = "Please run `claude login` first."
+        stderr = ""
+
+    monkeypatch.setattr(cli.subprocess, "run", lambda args, **kw: FakeProc())
+    monkeypatch.setattr(cli.shutil, "which", lambda name: "claude")
+    with pytest.raises(RuntimeError) as ei:
+        cli._run_claude("hi", "haiku")
+    assert "claude login" in str(ei.value)
+
+
 def test_run_codex_strips_null_bytes_from_prompt(monkeypatch):
     seen = {}
 
