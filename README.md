@@ -66,6 +66,7 @@ ANTHROPIC_API_KEY=sk-ant-...
 - [Testing](#testing)
 - [Roadmap](#roadmap)
 - [Contributing](#contributing)
+- [Disclaimer](#disclaimer)
 - [License](#license)
 
 ## Features
@@ -74,7 +75,7 @@ ANTHROPIC_API_KEY=sk-ant-...
 - **Skill-gap analysis** — aggregates the in-demand skills across matched jobs and contrasts them with your résumé to surface real gaps.
 - **Search history** — every search is auto-saved (AI picks + named-company jobs + skill gap); revisit, regenerate a package, or delete. No more losing a great match to a re-run.
 - **Résumé health check** — scores against Taiwan ATS conventions with concrete fixes and before/after rewrites.
-- **Application-package workbench** — a multi-agent pipeline (parse JD → match score → company research → tailored résumé → cover letter → interview kit → critique) with a **human approval gate**. Outputs are editable inline and exportable to Word / PDF, then auto-saved.
+- **Application-package workbench** — a multi-agent pipeline (parse JD → match score → company research → tailored résumé → cover letter → interview kit → critique) with a **human approval gate**. Outputs are editable inline and exportable to **Word (.docx)** (PDF via your browser's print dialog), then auto-saved.
 - **Mock interview** — generates questions from the JD and your résumé, with per-answer feedback, scores, and a final summary.
 - **Personalization** — remembers your most recent résumé (no re-upload) and preferences (target titles, tone, skills to emphasize) across sessions and applies them to outputs.
 
@@ -126,7 +127,7 @@ app/
   sources/    # 104 / Yourator / LinkedIn / Cake search + registry
   store/      # app-level SQLite: history, memory, searches
   intake/     # résumé/JD parsing and fetching
-  export/     # Word/PDF export
+  export/     # Word (.docx) export
   graph.py    # LangGraph StateGraph (agents + human gate)
   server.py   # FastAPI + SSE endpoints
   llm.py      # pluggable LLM backend resolution
@@ -153,6 +154,10 @@ cd frontend && npm run build   # type-check + production build
 
 Issues and pull requests are welcome. For non-trivial changes, please open an issue first to discuss the approach. Run `pytest` and `npm run build` before submitting.
 
+## Disclaimer
+
+This project is for **personal, educational, and research use**. It queries public job listings from 104 / Yourator / LinkedIn / Cake at low frequency to help an individual job seeker. You are responsible for complying with each site's Terms of Service and `robots.txt`; do **not** use it for bulk scraping or commercial data harvesting. The software is provided "as is", without warranty of any kind. LLM-generated content (résumés, cover letters, company research) may contain inaccuracies — always review before use.
+
 ## License
 
-No license has been chosen yet. Until a `LICENSE` file is added, all rights are reserved by the author.
+Released under the [MIT License](LICENSE).

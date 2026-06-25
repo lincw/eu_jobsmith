@@ -14,3 +14,8 @@ data/app.sqlite*
 
 # 參考用截圖（非產品檔）
 opendesign.png
+
+# 個人資料 / 個人截圖（勿進版控）
+/resume_zh.pdf
+/技能缺口.png
+/*.pdf

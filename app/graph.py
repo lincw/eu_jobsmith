@@ -3,7 +3,7 @@
 
 迴圈採單節點回圈（critic→company_research）；company_research 重寫時跳過搜尋；
 生成節點讀 state 的 critique.feedback 改進；重寫覆寫各自 state key（last-write-wins，不需 reducer）。
-human_gate 用 interrupt()，故圖以 MemorySaver checkpointer compile，執行需帶 thread_id。
+human_gate 用 interrupt()，故圖以 SqliteSaver checkpointer compile，執行需帶 thread_id。
 """
 import os
 import sqlite3
