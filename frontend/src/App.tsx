@@ -29,6 +29,8 @@ export default function App() {
   const [tab, setTab] = useState<Tab>("search")
   const [seed, setSeed] = useState<Seed | null>(null)
   const [interviewSeed, setInterviewSeed] = useState<Seed | null>(null)
+  // 從「我的投遞包」點進行中的那筆 → 工作台接回該背景產生看即時進度。
+  const [watch, setWatch] = useState<{ threadId: string; packageId: number; title?: string; nonce: number } | null>(null)
   // 使用者真實履歷（自動找職缺解析後共用），讓「投遞包工作台」分頁手動開跑也能用本人背景。
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [preferences, setPreferences] = useState<Preferences>({})
@@ -59,6 +61,12 @@ export default function App() {
     setTab("interview")
   }
 
+  // 點「我的投遞包」進行中的那筆 → 切到工作台、接回該背景產生看進度。
+  function watchRun(threadId: string, packageId: number, title?: string) {
+    setWatch({ threadId, packageId, title, nonce: Date.now() })
+    setTab("pipeline")
+  }
+
   function finishOnboard() {
     localStorage.setItem("copilot.backend.confirmed", "1")
     setShowOnboard(false)
@@ -86,13 +94,13 @@ export default function App() {
           </div>
           <div className={tab === "pipeline" ? "" : "hidden"}>
             <PipelineView seed={seed} fallbackProfile={profile} preferences={preferences}
-              onBack={() => setTab("search")} />
+              watch={watch} onBack={() => setTab("search")} />
           </div>
           <div className={tab === "interview" ? "" : "hidden"}>
             <InterviewView active={tab === "interview"} fallbackProfile={profile} seed={interviewSeed} />
           </div>
           <div className={tab === "history" ? "" : "hidden"}>
-            <HistoryView active={tab === "history"} onReopen={pickJob} onInterview={startInterview} />
+            <HistoryView active={tab === "history"} onReopen={pickJob} onInterview={startInterview} onWatch={watchRun} />
           </div>
           <div className={tab === "settings" ? "" : "hidden"}>
             <PreferencesView value={preferences} onSave={setPreferences} />

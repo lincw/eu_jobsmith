@@ -14,7 +14,7 @@ import {
 
 interface PkgSummary {
   id: number; created_at: string; job_title: string; company: string
-  match_score: number; approved: number; status?: string
+  match_score: number; approved: number; status?: string; thread_id?: string
 }
 interface PackageDetail {
   id: number; package: PipelineState; jd_text?: string; profile?: UserProfile | null; approved?: number
@@ -26,11 +26,12 @@ function fmtDate(iso: string) {
 }
 
 export function HistoryView(
-  { active, onReopen, onInterview }:
+  { active, onReopen, onInterview, onWatch }:
   {
     active: boolean
     onReopen: (jd: string, profile?: UserProfile | null) => void
     onInterview: (jd: string, profile?: UserProfile | null) => void
+    onWatch?: (threadId: string, packageId: number, title: string) => void
   },
 ) {
   const [list, setList] = useState<PkgSummary[]>([])
@@ -143,10 +144,13 @@ export function HistoryView(
       <h2 className="font-semibold">我的投遞包（{list.length}）</h2>
       {list.map((p) => {
         const running = p.status === "running"
+        const onCard = () => {
+          if (running) { if (p.thread_id && onWatch) onWatch(p.thread_id, p.id, p.job_title) }
+          else open(p.id)
+        }
         return (
-          <Card key={p.id} interactive={!running}
-            className={`p-4 flex items-center gap-4 ${running ? "" : "cursor-pointer"}`}
-            onClick={() => { if (!running) open(p.id) }}>
+          <Card key={p.id} interactive className="p-4 flex items-center gap-4 cursor-pointer"
+            onClick={onCard}>
             <div className={`shrink-0 w-12 h-12 rounded-xl grid place-items-center font-bold text-white ${
               running ? "bg-slate-300"
                 : p.match_score >= 80 ? "bg-emerald-600" : p.match_score >= 60 ? "bg-amber-500" : "bg-slate-400"}`}>
@@ -156,7 +160,7 @@ export function HistoryView(
               <p className="font-medium text-slate-900 truncate">{p.job_title}</p>
               <p className="text-sm text-slate-600 truncate flex items-center gap-2">
                 <span className="truncate">{p.company || "—"} · {fmtDate(p.created_at)}</span>
-                {running ? <Badge tone="brand">進行中</Badge>
+                {running ? <Badge tone="brand">進行中 · 點開看進度</Badge>
                   : p.approved ? <Badge tone="emerald">已核可</Badge>
                     : <Badge tone="amber">待審</Badge>}
               </p>

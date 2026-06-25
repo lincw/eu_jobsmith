@@ -26,8 +26,12 @@ interface RunEvent {
 }
 
 export function PipelineView(
-  { seed, fallbackProfile, preferences, onBack }:
-  { seed?: Seed | null; fallbackProfile?: UserProfile | null; preferences?: Preferences; onBack?: () => void },
+  { seed, fallbackProfile, preferences, watch, onBack }:
+  {
+    seed?: Seed | null; fallbackProfile?: UserProfile | null; preferences?: Preferences
+    watch?: { threadId: string; packageId: number; title?: string; nonce: number } | null
+    onBack?: () => void
+  },
 ) {
   const [jd, setJd] = useState("")
   const [manualJd, setManualJd] = useState("")
@@ -147,6 +151,17 @@ export function PipelineView(
     if (seed?.jd) run(seed.jd, seed.profile)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seed?.nonce])
+
+  // 從「我的投遞包」點進行中的那筆 → 接回該背景產生看即時進度（watch.nonce 外部訊號觸發）。
+  useEffect(() => {
+    if (watch?.threadId) {
+      resetView(); setJd(watch.title || "")
+      localStorage.setItem(RUN_KEY, JSON.stringify(
+        { threadId: watch.threadId, packageId: watch.packageId, jd: watch.title || "" }))
+      startPolling(watch.threadId, watch.packageId)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [watch?.nonce])
 
   // 掛載時（無 seed）接回最近一次背景產生：重新整理/切回分頁都能繼續看。
   useEffect(() => {

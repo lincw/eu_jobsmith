@@ -99,7 +99,7 @@ def list_packages() -> list[dict]:
     # 與終局自動存檔同時發生時可能拋 ProgrammingError。
     with db.LOCK:
         rows = conn.execute(
-            "SELECT id,created_at,job_title,company,match_score,approved,status "
+            "SELECT id,created_at,job_title,company,match_score,approved,status,thread_id "
             "FROM packages ORDER BY id DESC").fetchall()
     return [dict(r) for r in rows]
 
