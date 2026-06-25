@@ -18,7 +18,7 @@ const STEPS = [
   },
   {
     title: "確認候選人 Profile",
-    body: "如果要跨 session 免重傳，可以手動儲存 Profile。產生投遞包前仍會要求確認，避免套錯履歷。",
+    body: "如果要跨 session 免重傳，請到左下角「個人化」設定儲存 Profile。產生投遞包前仍會要求確認，避免套錯履歷。",
     icon: UserRound,
   },
   {
