@@ -43,12 +43,38 @@ def test_create_running_then_update_result():
     full = history.get_package(pid)
     assert full["package"]["tailored_resume"]["summary"] == "後端"
     assert full["profile"]["name"] == "王"  # update 不覆蓋建立時存的 profile
+    assert full["has_artifacts"] == 1
+
+
+def test_update_without_artifacts_marks_stopped_not_reviewable():
+    # 例如低適配被 supervisor 停做：流程有結束，但沒有投遞包文件，不應顯示成「待審」。
+    pid = history.create_running_package("t-stop", "JD", "低適配職缺", None)
+    history.update_package_result(pid, {
+        "jd_text": "JD",
+        "parsed_job": {"title": "低適配職缺", "company": "測試公司"},
+        "match_report": {"score": 25, "recommend_proceed": False, "reason": "不符"},
+    })
+    row = next(r for r in history.list_packages() if r["id"] == pid)
+    assert row["status"] == "stopped"
+    assert row["has_artifacts"] == 0
+    full = history.get_package(pid)
+    assert full["status"] == "stopped"
+    assert full["has_artifacts"] == 0
 
 
 def test_set_status_marks_failed():
     pid = history.create_running_package("t-x", "JD", "T", None)
     history.set_status(pid, "failed")
     assert next(r for r in history.list_packages() if r["id"] == pid)["status"] == "failed"
+
+
+def test_fail_package_records_error_detail():
+    pid = history.create_running_package("t-fail", "JD", "T", None)
+    history.fail_package(pid, "RuntimeError: boom")
+    row = next(r for r in history.list_packages() if r["id"] == pid)
+    assert row["status"] == "failed" and row["has_artifacts"] == 0
+    full = history.get_package(pid)
+    assert full["package"]["error"]["message"] == "RuntimeError: boom"
 
 
 def test_mark_stale_running_failed_on_startup():

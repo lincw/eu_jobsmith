@@ -116,7 +116,7 @@ def test_run_events_unknown_thread_returns_not_found():
 
 
 def test_run_stop_path_finalizes_record(monkeypatch):
-    # 低適配 → supervisor 停做：仍要收尾成 done（不卡「進行中」），即使沒有客製履歷。
+    # 低適配 → supervisor 停做：仍要收尾成 stopped（不卡「進行中」，也不冒充待審成品）。
     _patch_agents(monkeypatch)
     monkeypatch.setattr(graph_mod, "match_profile",
                         lambda job, profile: MatchReport(score=30, recommend_proceed=False, reason="不符"))
@@ -124,7 +124,8 @@ def test_run_stop_path_finalizes_record(monkeypatch):
     d, events = _run_bg(client, {"jd_text": "一些 JD"})
     types = [e["type"] for e in events]
     assert "interrupt" not in types and types[-1] == "done"
-    assert server_mod._history.get_package(d["package_id"])["status"] == "done"
+    full = server_mod._history.get_package(d["package_id"])
+    assert full["status"] == "stopped" and full["has_artifacts"] == 0
 
 
 def test_run_uses_posted_profile_not_demo(monkeypatch):

@@ -30,7 +30,7 @@ def _init(conn: sqlite3.Connection) -> None:
     if "thread_id" not in cols:
         conn.execute("ALTER TABLE packages ADD COLUMN thread_id TEXT")
     if "status" not in cols:
-        # 既有列視為已完成；新列由背景流程建立時為 'running'，跑完轉 'done'（失敗 'failed'）。
+        # 既有列視為已完成；新列先為 'running'，跑完有文件轉 'done'，無文件轉 'stopped'，失敗 'failed'。
         conn.execute("ALTER TABLE packages ADD COLUMN status TEXT DEFAULT 'done'")
     conn.execute(
         "CREATE TABLE IF NOT EXISTS user_memory("

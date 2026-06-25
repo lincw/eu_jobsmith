@@ -10,19 +10,34 @@ import {
 } from "../components/pipeline/Documents"
 import {
   Archive, Trash2, ArrowLeft, FileDown, Printer, Workflow, MessagesSquare, CircleCheck, Loader2,
+  AlertTriangle, XCircle,
 } from "../ui/icons"
 
 interface PkgSummary {
   id: number; created_at: string; job_title: string; company: string
-  match_score: number; approved: number; status?: string; thread_id?: string
+  match_score: number; approved: number; status?: string; thread_id?: string; has_artifacts?: number
 }
+type PackagePayload = PipelineState & { error?: { message?: string } }
 interface PackageDetail {
-  id: number; package: PipelineState; jd_text?: string; profile?: UserProfile | null; approved?: number
+  id: number; package: PackagePayload; jd_text?: string; profile?: UserProfile | null
+  approved?: number; status?: string; has_artifacts?: number
 }
 
 function fmtDate(iso: string) {
   try { return new Date(iso).toLocaleString("zh-TW", { dateStyle: "medium", timeStyle: "short" }) }
   catch { return iso }
+}
+
+function hasArtifacts(pkg: PipelineState | null | undefined) {
+  return Boolean(pkg?.tailored_resume || pkg?.cover_letter || pkg?.interview_kit)
+}
+
+function statusBadge(p: PkgSummary) {
+  if (p.status === "running") return <Badge tone="brand">進行中 · 點開看進度</Badge>
+  if (p.status === "failed") return <Badge tone="rose">產生失敗</Badge>
+  if (p.status === "stopped" || p.has_artifacts === 0) return <Badge tone="slate">未產出</Badge>
+  if (p.approved) return <Badge tone="emerald">已核可</Badge>
+  return <Badge tone="amber">待審</Badge>
 }
 
 export function HistoryView(
@@ -100,6 +115,14 @@ export function HistoryView(
   // ---- 詳情檢視 ----
   if (detail) {
     const p = detail.package || {}
+    const hasDocs = hasArtifacts(p)
+    const canReview = detail.status === "done" && hasDocs
+    const failed = detail.status === "failed"
+    const stopped = detail.status === "stopped" || !hasDocs
+    const emptyTitle = failed ? "產生失敗" : "未產出可審核文件"
+    const emptyDesc = failed
+      ? (p.error?.message || "背景產生過程中斷，這筆紀錄沒有可顯示的投遞包內容。")
+      : "這筆流程已結束，但沒有產出客製履歷、求職信或面試準備；通常是適配度過低或流程在產出前停止。"
     return (
       <div>
         <button onClick={() => setDetail(null)}
@@ -107,17 +130,22 @@ export function HistoryView(
           <ArrowLeft className="w-4 h-4" />回列表
         </button>
         <div className="no-print flex flex-wrap gap-2 mb-4">
-          {detail.approved !== 1 && (
+          {canReview && detail.approved !== 1 && (
             <Button variant="primary" icon={CircleCheck} onClick={() => approve(detail.id)}>核可</Button>
           )}
           <Button variant="secondary" icon={Workflow}
             onClick={() => onReopen(detail.jd_text || "", detail.profile ?? null)}>重新開啟到工作台</Button>
           <Button variant="secondary" icon={MessagesSquare}
             onClick={() => onInterview(detail.jd_text || "", detail.profile ?? null)}>用這份做面試模擬</Button>
-          <Button variant="secondary" icon={FileDown} onClick={() => downloadDocx(p)}>下載 Word</Button>
-          <Button variant="secondary" icon={Printer} onClick={() => window.print()}>列印 / 匯出 PDF</Button>
+          {hasDocs && <Button variant="secondary" icon={FileDown} onClick={() => downloadDocx(p)}>下載 Word</Button>}
+          {hasDocs && <Button variant="secondary" icon={Printer} onClick={() => window.print()}>列印 / 匯出 PDF</Button>}
         </div>
         <div className="space-y-4">
+          {stopped && (
+            <Card className="p-2">
+              <EmptyState icon={failed ? XCircle : AlertTriangle} title={emptyTitle} desc={emptyDesc} />
+            </Card>
+          )}
           {p.match_report && <MatchCard m={p.match_report} />}
           {p.company_brief && <CompanyCard c={p.company_brief} />}
           {p.tailored_resume && <ResumeDoc r={p.tailored_resume} />}
@@ -143,6 +171,9 @@ export function HistoryView(
       <h2 className="font-semibold">我的投遞包（{list.length}）</h2>
       {list.map((p) => {
         const running = p.status === "running"
+        const failed = p.status === "failed"
+        const stopped = p.status === "stopped" || p.has_artifacts === 0
+        const reviewable = p.status === "done" && p.has_artifacts !== 0 && !p.approved
         const onCard = () => {
           if (running) { if (p.thread_id && onWatch) onWatch(p.thread_id, p.id, p.job_title) }
           else open(p.id)
@@ -152,19 +183,22 @@ export function HistoryView(
             onClick={onCard}>
             <div className={`shrink-0 w-12 h-12 rounded-xl grid place-items-center font-bold text-white ${
               running ? "bg-slate-300"
+                : failed ? "bg-rose-500"
+                  : stopped ? "bg-slate-400"
                 : p.match_score >= 80 ? "bg-emerald-600" : p.match_score >= 60 ? "bg-amber-500" : "bg-slate-400"}`}>
-              {running ? <Loader2 className="w-5 h-5 animate-spin" /> : p.match_score}
+              {running ? <Loader2 className="w-5 h-5 animate-spin" />
+                : failed ? <XCircle className="w-5 h-5" />
+                  : stopped ? <AlertTriangle className="w-5 h-5" />
+                    : p.match_score}
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-medium text-slate-900 truncate">{p.job_title}</p>
               <p className="text-sm text-slate-600 truncate flex items-center gap-2">
                 <span className="truncate">{p.company || "—"} · {fmtDate(p.created_at)}</span>
-                {running ? <Badge tone="brand">進行中 · 點開看進度</Badge>
-                  : p.approved ? <Badge tone="emerald">已核可</Badge>
-                    : <Badge tone="amber">待審</Badge>}
+                {statusBadge(p)}
               </p>
             </div>
-            {!running && !p.approved && (
+            {reviewable && (
               <button onClick={(e) => approve(p.id, e)} aria-label={`核可 ${p.job_title}`} title="核可"
                 onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") e.stopPropagation() }}
                 className="shrink-0 p-2 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300">

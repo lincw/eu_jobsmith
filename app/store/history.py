@@ -8,6 +8,26 @@ from app.store import db
 
 _PKG_KEYS = ("parsed_job", "match_report", "company_brief",
              "tailored_resume", "cover_letter", "interview_kit", "critique")
+_ARTIFACT_KEYS = ("tailored_resume", "cover_letter", "interview_kit")
+
+
+def _package_from_state(final_state: dict) -> dict:
+    return {k: final_state.get(k) for k in _PKG_KEYS}
+
+
+def _has_artifacts(package: dict) -> bool:
+    """是否真的有可審核的投遞包文件。匹配/公司情報不算成品。"""
+    return any(bool(package.get(k)) for k in _ARTIFACT_KEYS)
+
+
+def _load_package(raw: str | None) -> dict:
+    if not raw:
+        return {}
+    try:
+        data = json.loads(raw)
+    except (TypeError, json.JSONDecodeError):
+        return {}
+    return data if isinstance(data, dict) else {}
 
 
 def save_package(final_state: dict, thread_id: str | None = None) -> int:
@@ -18,7 +38,7 @@ def save_package(final_state: dict, thread_id: str | None = None) -> int:
     """
     pj = final_state.get("parsed_job") or {}
     mr = final_state.get("match_report") or {}
-    package = {k: final_state.get(k) for k in _PKG_KEYS}
+    package = _package_from_state(final_state)
     profile = final_state.get("profile")
     conn = db.get_conn()
     with db.LOCK:
@@ -61,26 +81,38 @@ def create_running_package(thread_id: str, jd_text: str, title: str,
 
 
 def update_package_result(pid: int, final_state: dict) -> None:
-    """背景流程完成：補上成品並標記 status='done'（approved 維持 0＝待審，由使用者到我的投遞包核可）。"""
+    """背景流程完成：補上結果；有成品才標 done，沒有文件則標 stopped。"""
     pj = final_state.get("parsed_job") or {}
     mr = final_state.get("match_report") or {}
-    package = {k: final_state.get(k) for k in _PKG_KEYS}
+    package = _package_from_state(final_state)
+    status = "done" if _has_artifacts(package) else "stopped"
     conn = db.get_conn()
     with db.LOCK:
         conn.execute(
             "UPDATE packages SET job_title=?, company=?, match_score=?, package_json=?, "
-            "status='done' WHERE id=?",
+            "status=? WHERE id=?",
             (pj.get("title") or "（未命名）", pj.get("company") or "",
              int(mr.get("score") or 0),
-             json.dumps(package, ensure_ascii=False), pid))
+             json.dumps(package, ensure_ascii=False), status, pid))
         conn.commit()
 
 
 def set_status(pid: int, status: str) -> None:
-    """更新生命週期狀態（running / done / failed）。"""
+    """更新生命週期狀態（running / done / stopped / failed）。"""
     conn = db.get_conn()
     with db.LOCK:
         conn.execute("UPDATE packages SET status=? WHERE id=?", (status, pid))
+        conn.commit()
+
+
+def fail_package(pid: int, message: str = "") -> None:
+    """背景流程失敗：標記 failed，並把錯誤摘要放進詳情，避免前端打開只有空白。"""
+    package = {"error": {"message": message}} if message else {}
+    conn = db.get_conn()
+    with db.LOCK:
+        conn.execute(
+            "UPDATE packages SET package_json=?, status='failed' WHERE id=?",
+            (json.dumps(package, ensure_ascii=False), pid))
         conn.commit()
 
 
@@ -99,9 +131,18 @@ def list_packages() -> list[dict]:
     # 與終局自動存檔同時發生時可能拋 ProgrammingError。
     with db.LOCK:
         rows = conn.execute(
-            "SELECT id,created_at,job_title,company,match_score,approved,status,thread_id "
+            "SELECT id,created_at,job_title,company,match_score,approved,status,thread_id,package_json "
             "FROM packages ORDER BY id DESC").fetchall()
-    return [dict(r) for r in rows]
+    out = []
+    for r in rows:
+        d = dict(r)
+        package = _load_package(d.pop("package_json", None))
+        d["has_artifacts"] = 1 if _has_artifacts(package) else 0
+        # 舊版可能已有 status='done' 但 package_json 沒有任何成品文件；列表不要顯示成待審。
+        if d.get("status") == "done" and not d["has_artifacts"]:
+            d["status"] = "stopped"
+        out.append(d)
+    return out
 
 
 def get_package(pid: int) -> dict | None:
@@ -111,7 +152,11 @@ def get_package(pid: int) -> dict | None:
     if not r:
         return None
     d = dict(r)
-    d["package"] = json.loads(d.pop("package_json") or "{}")
+    package = _load_package(d.pop("package_json") or "{}")
+    d["package"] = package
+    d["has_artifacts"] = 1 if _has_artifacts(package) else 0
+    if d.get("status") == "done" and not d["has_artifacts"]:
+        d["status"] = "stopped"
     d["profile"] = json.loads(d["profile_json"]) if d.get("profile_json") else None
     d.pop("profile_json", None)
     return d

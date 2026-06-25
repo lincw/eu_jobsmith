@@ -187,9 +187,10 @@ def _run_pipeline_bg(run: "_Run", initial: dict, config: dict, graph) -> None:
         _history.update_package_result(run.package_id, final)
         run.emit({"type": "done", "package_id": run.package_id})
     except Exception as exc:  # noqa: BLE001 — 背景出錯也要收尾，不讓那筆永遠卡「進行中」
-        run.emit({"type": "error", "message": _err_detail(exc)})
+        detail = _err_detail(exc)
+        run.emit({"type": "error", "message": detail})
         try:
-            _history.set_status(run.package_id, "failed")
+            _history.fail_package(run.package_id, detail)
         except Exception:
             pass
     finally:
