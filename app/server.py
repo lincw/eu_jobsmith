@@ -363,16 +363,39 @@ def _backend_available(name: str) -> bool:
     return False
 
 
+def _cli_version(name: str) -> str:
+    """跑 `<cli> --version` 取版本字串（給設定面板的卡片顯示）；找不到/失敗回空字串。"""
+    import subprocess
+    spec = {"claude_cli": ("CLAUDE_CLI_PATH", "claude"),
+            "codex_cli": ("CODEX_CLI_PATH", "codex")}.get(name)
+    if not spec:
+        return ""
+    exe = os.environ.get(spec[0]) or shutil.which(spec[1])
+    if not exe:
+        return ""
+    try:
+        r = subprocess.run([exe, "--version"], capture_output=True, text=True, timeout=8)
+        lines = (r.stdout or r.stderr or "").strip().splitlines()
+        return lines[0][:80] if lines else ""
+    except Exception:
+        return ""
+
+
+def _backend_option(b: str) -> dict:
+    kind = settings.BACKEND_KIND.get(b, "api")
+    opt = {"id": b, "label": settings.BACKEND_LABELS.get(b, b),
+           "available": _backend_available(b), "kind": kind}
+    if kind == "cli":
+        opt["version"] = _cli_version(b)
+    return opt
+
+
 @app.get("/api/backend")
 def get_backend():
-    """目前作用中的 LLM 後端、可選清單、各 CLI 模型選項、以及 BYOK 設定狀態（供右上角控制台）。"""
+    """目前作用中的 LLM 後端、可選清單（含 CLI 版本）、各 CLI 模型選項、BYOK 設定狀態。"""
     return {
         "current": settings.current_backend(),
-        "options": [
-            {"id": b, "label": settings.BACKEND_LABELS.get(b, b),
-             "available": _backend_available(b), "kind": settings.BACKEND_KIND.get(b, "api")}
-            for b in settings.SUPPORTED_BACKENDS
-        ],
+        "options": [_backend_option(b) for b in settings.SUPPORTED_BACKENDS],
         "cli_models": {
             b: {"choices": settings.CLI_MODEL_CHOICES[b], "current": settings.cli_model(b)}
             for b in settings.CLI_MODEL_CHOICES

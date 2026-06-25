@@ -1,0 +1,81 @@
+import { useEffect, useState } from "react"
+
+// 後端控制台共用資料層：右上角 popover 與「執行設定」面板都用這個 hook。
+export interface BackendOption { id: string; label: string; available: boolean; kind: string; version?: string }
+export interface CliModel { choices: string[]; current: string }
+export interface ByokCfg { base_url: string; model: string; has_key: boolean }
+export interface BackendData {
+  current: string
+  options: BackendOption[]
+  cli_models: Record<string, CliModel>
+  byok: ByokCfg
+}
+export type TestState = "loading" | { ok: boolean; msg: string } | undefined
+export interface ByokForm { base_url: string; api_key: string; model: string }
+
+function postJSON(url: string, body: unknown) {
+  return fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+}
+
+export function useBackend() {
+  const [data, setData] = useState<BackendData | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [tests, setTests] = useState<Record<string, TestState>>({})
+
+  async function reload(): Promise<BackendData | null> {
+    try {
+      const d: BackendData = await (await fetch("/api/backend")).json()
+      setData(d)
+      return d
+    } catch { return null }
+  }
+  useEffect(() => {
+    // 初次載入後端清單；reload 在 await 之後才 setState（非渲染期同步），是 effect 正當用途。
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    reload()
+  }, [])
+
+  async function activate(id: string) {
+    setBusy(true)
+    try {
+      const r = await postJSON("/api/backend", { backend: id })
+      if (r.ok) setData((d) => (d ? { ...d, current: id } : d))
+    } finally { setBusy(false) }
+  }
+
+  async function setModel(backend: string, model: string) {
+    setData((d) => (d ? { ...d, cli_models: { ...d.cli_models, [backend]: { ...d.cli_models[backend], current: model } } } : d))
+    await postJSON("/api/backend/model", { backend, model })
+  }
+
+  async function saveByok(cfg: ByokForm, activateAfter: boolean) {
+    setBusy(true)
+    try {
+      await postJSON("/api/backend/byok", cfg)
+      if (activateAfter) await activate("openai")
+      await reload()
+    } finally { setBusy(false) }
+  }
+
+  async function runTest(id: string) {
+    setTests((t) => ({ ...t, [id]: "loading" }))
+    try {
+      const d = await (await postJSON("/api/backend/test", { backend: id })).json()
+      setTests((t) => ({ ...t, [id]: { ok: Boolean(d.ok), msg: d.message || (d.ok ? "連線成功" : "連線失敗") } }))
+    } catch {
+      setTests((t) => ({ ...t, [id]: { ok: false, msg: "連線發生問題，請確認伺服器已啟動。" } }))
+    }
+  }
+
+  return { data, busy, tests, reload, activate, setModel, saveByok, runTest }
+}
+
+// CLI 代理清單（目前支援的本機 CLI）。顯示名與後端 id 對應。
+export const CLI_AGENTS: { id: string; name: string }[] = [
+  { id: "claude_cli", name: "Claude Code" },
+  { id: "codex_cli", name: "Codex CLI" },
+]
+
+export function modelLabel(m: string | undefined): string {
+  return !m || m === "auto" ? "預設" : m
+}
