@@ -3,7 +3,7 @@ import type { TelemetryEntry } from "../../types"
 import {
   Search, Target, Building2, FileText, Mail, MessageSquare, ShieldCheck,
   Sparkles, CheckCircle2, Loader2, AlertTriangle,
-  Cpu, Coins, Timer, RefreshCw, Network, Gauge,
+  Cpu, Timer, RefreshCw, Network, Gauge,
 } from "../../ui/icons"
 
 type Kind = "agent" | "decision" | "gate"
@@ -65,7 +65,6 @@ function NodeBadges({ t }: { t?: TelemetryEntry }) {
   const tokens = (t.input_tokens || 0) + (t.output_tokens || 0)
   const items: [ComponentType<{ className?: string }>, string][] = []
   if (tokens > 0) items.push([Cpu, tokens.toLocaleString()])
-  if (t.cost_usd > 0) items.push([Coins, `$${t.cost_usd.toFixed(4)}`])
   if (t.latency_ms > 0) items.push([Timer, `${(t.latency_ms / 1000).toFixed(1)}s`])
   if (!items.length) return null
   return (
@@ -144,7 +143,7 @@ export function AgentTrace(
     const e = byNode.get(t.node)
     if (e) {
       e.calls += t.calls; e.input_tokens += t.input_tokens
-      e.output_tokens += t.output_tokens; e.cost_usd += t.cost_usd; e.latency_ms += t.latency_ms
+      e.output_tokens += t.output_tokens; e.latency_ms += t.latency_ms
     } else {
       byNode.set(t.node, { ...t })
     }
@@ -152,10 +151,9 @@ export function AgentTrace(
   const totals = telemetry.reduce(
     (a, t) => ({
       tokens: a.tokens + (t.input_tokens || 0) + (t.output_tokens || 0),
-      cost: a.cost + (t.cost_usd || 0),
       ms: a.ms + (t.latency_ms || 0),
     }),
-    { tokens: 0, cost: 0, ms: 0 },
+    { tokens: 0, ms: 0 },
   )
   const hasTelem = byNode.size > 0
 
@@ -185,10 +183,9 @@ export function AgentTrace(
       </div>
 
       {hasTelem && (
-        <div className="grid grid-cols-2 gap-2 mb-4">
+        <div className="grid grid-cols-3 gap-2 mb-4">
           <Stat icon={Gauge} label="agents" value={String(byNode.size)} />
           <Stat icon={Cpu} label="tokens" value={totals.tokens.toLocaleString()} />
-          {totals.cost > 0 && <Stat icon={Coins} label="成本" value={`$${totals.cost.toFixed(4)}`} />}
           <Stat icon={Timer} label="時間" value={`${(totals.ms / 1000).toFixed(1)}s`} />
         </div>
       )}

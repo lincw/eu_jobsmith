@@ -11,7 +11,7 @@ import { Button } from "../ui/Button"
 import { EmptyState } from "../ui/EmptyState"
 import {
   Sparkles, Network, ArrowLeft, AlertTriangle, CheckCircle2, RefreshCw, Printer, LinkIcon,
-  FileDown,
+  FileDown, FileText,
 } from "../ui/icons"
 
 type Phase = "idle" | "running" | "approval" | "done"
@@ -35,6 +35,7 @@ export function PipelineView(
   const [telemetry, setTelemetry] = useState<TelemetryEntry[]>([])
   const [error, setError] = useState("")
   const [edited, setEdited] = useState<EditablePackage | null>(null)
+  const [showJd, setShowJd] = useState(false)  // seeded 模式下是否展開 JD 查看/編輯
 
   function handle(ev: PipelineEvent) {
     if (ev.type === "start") {
@@ -184,6 +185,9 @@ export function PipelineView(
     state.match_report || state.company_brief || state.tailored_resume ||
     state.cover_letter || state.interview_kit || state.critique,
   )
+  // 來自 AI 搜尋（有 seed）：JD 已載入，收起貼網址/JD 看板省空間，只留標題＋匯出，可展開編輯。
+  const seeded = Boolean(seed?.jd)
+  const jdTitle = jd.split("\n").map((s) => s.trim()).find(Boolean) || "此職缺"
 
   return (
     <div>
@@ -194,39 +198,73 @@ export function PipelineView(
         </button>
       )}
       <Card className="no-print mb-4 p-5">
-        <div className="flex gap-2 mb-3">
-          <div className="relative flex-1">
-            <LinkIcon className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") fetchUrl() }}
-              placeholder="貼職缺網址（104 或一般網頁）自動抓取 JD…"
-              className="w-full border border-slate-300 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-200"
-            />
+        {seeded ? (
+          // 來自 AI 搜尋：精簡標題列 + 匯出；JD 預設收起，可展開查看／編輯後重跑。
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <FileText className="w-4 h-4 text-brand-600 shrink-0" />
+              <span className="font-medium text-slate-800 truncate max-w-full" title={jdTitle}>{jdTitle}</span>
+              <button type="button" onClick={() => setShowJd((v) => !v)}
+                className="text-xs text-slate-400 hover:text-brand-600 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-300">
+                {showJd ? "收合" : "查看 / 編輯 JD"}
+              </button>
+              {hasDocs && (
+                <div className="ml-auto flex gap-2">
+                  <Button variant="secondary" icon={FileDown} onClick={downloadDocx}>下載 Word</Button>
+                  <Button variant="secondary" icon={Printer} onClick={printDocs}>列印 / 匯出 PDF</Button>
+                </div>
+              )}
+            </div>
+            {showJd && (
+              <div className="mt-3">
+                <textarea
+                  className="w-full border border-slate-300 rounded-lg p-3 text-sm h-40 focus:outline-none focus:ring-2 focus:ring-brand-200"
+                  value={jd}
+                  onChange={(e) => setJd(e.target.value)}
+                />
+                <Button className="mt-2" onClick={() => run()} disabled={phase === "running" || !jd.trim()}
+                  loading={phase === "running"} icon={Sparkles}>重新以這份 JD 產生</Button>
+              </div>
+            )}
           </div>
-          <Button variant="secondary" icon={LinkIcon} loading={fetching} onClick={fetchUrl}>抓取</Button>
-        </div>
-        {fetchErr && <p className="text-sm text-amber-600 mb-2">{fetchErr}</p>}
-        <textarea
-          className="w-full border border-slate-300 rounded-lg p-3 text-sm h-32 focus:outline-none focus:ring-2 focus:ring-brand-200"
-          placeholder="或直接貼上職缺 JD 文字…"
-          value={jd}
-          onChange={(e) => setJd(e.target.value)}
-        />
-        <div className="flex flex-wrap gap-2 mt-3 items-center">
-          <Button onClick={() => run()} disabled={phase === "running" || !jd.trim()}
-            loading={phase === "running"} icon={Sparkles}>
-            開始（跑 8 個 agent）
-          </Button>
-          <Button variant="secondary" onClick={loadSample} disabled={phase === "running"}>載入範例 JD</Button>
-          {hasDocs && (
-            <>
-              <Button variant="secondary" icon={FileDown} onClick={downloadDocx}>下載 Word</Button>
-              <Button variant="secondary" icon={Printer} onClick={printDocs}>列印 / 匯出 PDF</Button>
-            </>
-          )}
-        </div>
+        ) : (
+          // 手動進入：完整看板（貼網址抓取 / 貼 JD / 開始 / 範例 / 匯出）。
+          <>
+            <div className="flex gap-2 mb-3">
+              <div className="relative flex-1">
+                <LinkIcon className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") fetchUrl() }}
+                  placeholder="貼職缺網址（104 或一般網頁）自動抓取 JD…"
+                  className="w-full border border-slate-300 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-200"
+                />
+              </div>
+              <Button variant="secondary" icon={LinkIcon} loading={fetching} onClick={fetchUrl}>抓取</Button>
+            </div>
+            {fetchErr && <p className="text-sm text-amber-600 mb-2">{fetchErr}</p>}
+            <textarea
+              className="w-full border border-slate-300 rounded-lg p-3 text-sm h-32 focus:outline-none focus:ring-2 focus:ring-brand-200"
+              placeholder="或直接貼上職缺 JD 文字…"
+              value={jd}
+              onChange={(e) => setJd(e.target.value)}
+            />
+            <div className="flex flex-wrap gap-2 mt-3 items-center">
+              <Button onClick={() => run()} disabled={phase === "running" || !jd.trim()}
+                loading={phase === "running"} icon={Sparkles}>
+                開始（跑 8 個 agent）
+              </Button>
+              <Button variant="secondary" onClick={loadSample} disabled={phase === "running"}>載入範例 JD</Button>
+              {hasDocs && (
+                <>
+                  <Button variant="secondary" icon={FileDown} onClick={downloadDocx}>下載 Word</Button>
+                  <Button variant="secondary" icon={Printer} onClick={printDocs}>列印 / 匯出 PDF</Button>
+                </>
+              )}
+            </div>
+          </>
+        )}
         {error && <p className="text-sm text-rose-600 mt-2">{error}</p>}
       </Card>
 
