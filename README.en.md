@@ -25,18 +25,12 @@ Runs through your own **Claude Code / Codex CLI** subscription (no separate API 
 
 ---
 
-## Screenshots
+## Feature Overview
 
-<table>
-  <tr>
-    <td width="50%"><img src="screenshot/自動找職缺起始頁面.png" alt="Auto job search" /><br/><sub><b>Auto job search</b> — drop your résumé; AI derives keywords and searches 104 / Yourator / LinkedIn / Cake.</sub></td>
-    <td width="50%"><img src="screenshot/查詢職缺列表.png" alt="Ranked job list" /><br/><sub><b>Ranked results</b> — streamed and ordered by fit; one click to generate a package.</sub></td>
-  </tr>
-  <tr>
-    <td width="50%"><img src="screenshot/投遞工作包.png" alt="Application-package workbench" /><br/><sub><b>Package workbench</b> — live multi-agent orchestration with a clean, paginated result viewer.</sub></td>
-    <td width="50%"><img src="screenshot/模擬面試.png" alt="Mock interview" /><br/><sub><b>Mock interview</b> — JD-aware questions with per-answer feedback and scoring.</sub></td>
-  </tr>
-</table>
+- **Auto job search**: upload a resume, let AI derive keywords, and search 104 / Yourator / LinkedIn / Cake.
+- **Ranked results**: stream search results, score fit, and open the right jobs for an application package.
+- **Package workbench**: generate tailored resume bullets, cover letters, interview prep, and company research.
+- **Resume health check**: audit ATS fit, show deep-check or fallback status, and keep local report history.
 
 ---
 
@@ -77,7 +71,7 @@ To build your own `.exe`: `pip install pyinstaller && pyinstaller jobsmith.spec 
 
 ## Table of Contents
 
-- [Screenshots](#screenshots)
+- [Feature Overview](#feature-overview)
 - [Download](#download)
 - [Quick Start](#quick-start-from-source)
 - [Features](#features)

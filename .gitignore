@@ -12,6 +12,12 @@ data/error.log
 frontend/dist/
 data/checkpoints.sqlite*
 data/app.sqlite*
+app/evals/results.json
+docs/superpowers/
+screenshot/
+/logo.png
+/工具列.png
+/超過.png
 
 # PyInstaller 打包輸出（exe 很大，不進版控；發佈走 GitHub Release）
 /build/
