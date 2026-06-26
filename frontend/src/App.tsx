@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import type { CandidateProfile, Seed, UserProfile, Preferences } from "./types"
 import { JobSearchView } from "./views/JobSearchView"
 import { ResumeHealthView } from "./views/ResumeHealthView"
+import { ResumeCheckHistoryView } from "./views/ResumeCheckHistoryView"
 import { PipelineView } from "./views/PipelineView"
 import { InterviewView } from "./views/InterviewView"
 import { HistoryView } from "./views/HistoryView"
@@ -18,9 +19,9 @@ import {
 import { Sidebar } from "./ui/Sidebar"
 import type { NavItem } from "./ui/Sidebar"
 import { Button } from "./ui/Button"
-import { Compass, FileChartColumn, Workflow, MessagesSquare, Archive, Settings2, Search, ChevronUp, ChevronDown } from "./ui/icons"
+import { Compass, FileChartColumn, Workflow, MessagesSquare, Archive, Settings2, Search, ChevronUp, ChevronDown, ClipboardList } from "./ui/icons"
 
-type Tab = "search" | "searches" | "resume" | "pipeline" | "interview" | "history" | "settings"
+type Tab = "search" | "searches" | "resume" | "resumeChecks" | "pipeline" | "interview" | "history" | "settings"
 
 const NAV: NavItem<Tab>[] = [
   { id: "search", label: "自動找職缺", icon: Compass },
@@ -29,6 +30,7 @@ const NAV: NavItem<Tab>[] = [
   { id: "pipeline", label: "投遞包工作台", icon: Workflow },
   { id: "interview", label: "面試模擬", icon: MessagesSquare },
   { id: "resume", label: "履歷健檢", icon: FileChartColumn },
+  { id: "resumeChecks", label: "健檢紀錄", icon: ClipboardList },
 ]
 const FOOTER: NavItem<Tab>[] = [{ id: "settings", label: "個人化", icon: Settings2 }]
 const BACKEND_CONFIRMED_KEY = "copilot.backend.confirmed"
@@ -38,6 +40,7 @@ export default function App() {
   const [tab, setTab] = useState<Tab>("search")
   const [backendConfirmed, setBackendConfirmed] = useState(
     () => localStorage.getItem(BACKEND_CONFIRMED_KEY) === "1")
+  const [backendRefreshKey, setBackendRefreshKey] = useState(0)
   const [seed, setSeed] = useState<Seed | null>(null)
   const [interviewSeed, setInterviewSeed] = useState<Seed | null>(null)
   // 從「我的投遞包」點進行中的那筆 → 工作台接回該背景產生看即時進度。
@@ -157,6 +160,7 @@ export default function App() {
   function finishOnboard() {
     localStorage.setItem(BACKEND_CONFIRMED_KEY, "1")
     setBackendConfirmed(true)
+    setBackendRefreshKey((key) => key + 1)
     setShowOnboard(false)
   }
 
@@ -212,7 +216,7 @@ export default function App() {
                 </Button>
               )}
               <GithubStar />
-              <BackendSelector />
+              <BackendSelector refreshKey={backendRefreshKey} />
             </header>
           )}
 
@@ -226,6 +230,9 @@ export default function App() {
           </div>
           <div key={`resume-${privacyVersion}`} className={tab === "resume" ? "" : "hidden"}>
             <ResumeHealthView onProfile={activateSessionProfile} />
+          </div>
+          <div key={`resumeChecks-${privacyVersion}`} className={tab === "resumeChecks" ? "" : "hidden"}>
+            <ResumeCheckHistoryView active={tab === "resumeChecks"} onProfile={activateSessionProfile} />
           </div>
           <div key={`pipeline-${privacyVersion}`} className={tab === "pipeline" ? "" : "hidden"}>
             <PipelineView seed={seed} activeProfile={activeProfile} profiles={profiles}

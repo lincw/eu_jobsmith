@@ -1,6 +1,7 @@
 export interface ResumeIssue { severity: "high" | "medium" | "low"; area: string; problem: string; fix: string }
 export interface ResumeRewrite { original: string; improved: string; why: string }
 export interface ResumeAssessment {
+  assessment_mode?: "deep" | "fallback" | string; fallback_reason?: string;
   overall_score: number; clarity_score: number; impact_score: number;
   ats_keyword_score: number; localization_score: number; completeness_score: number;
   summary: string; strengths: string[]; issues: ResumeIssue[]; rewrite_examples: ResumeRewrite[];
@@ -9,6 +10,7 @@ export type SSEEvent =
   | { type: "start"; task_id?: string }
   | { type: "progress"; step: string; message: string }
   | { type: "profile"; data: unknown }
+  | { type: "saved_check"; id: number }
   | { type: "assessment"; data: ResumeAssessment }
   | { type: "stopped"; message: string }
   | { type: "done" }
@@ -62,6 +64,14 @@ export interface JobMatch {
 }
 // 使用者真實履歷結構（後端 /api/jobs/auto 與 /api/resume/evaluate 的 profile 事件，已排除 raw_text）
 export type UserProfile = Record<string, unknown>
+
+export interface ResumeCheckSummary {
+  id: number; created_at: string; label: string; resume_label: string;
+  candidate_name: string; overall_score: number; assessment_mode: string; fallback_reason: string;
+}
+export interface ResumeCheckDetail extends ResumeCheckSummary {
+  profile?: UserProfile | null; assessment: ResumeAssessment;
+}
 
 export interface EditableProfile {
   name: string;

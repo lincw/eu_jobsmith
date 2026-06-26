@@ -124,11 +124,16 @@ export function Onboarding({ onDone, onSkip }: { onDone: () => void; onSkip?: ()
     setStarting(true)
     try {
       if (!(await saveByokIfNeeded())) return
-      await fetch("/api/backend", {
+      const r = await fetch("/api/backend", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ backend: selected }),
       })
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({}))
+        setResult({ ok: false, message: d.error || "AI 後端套用失敗，請重新選擇。" })
+        return
+      }
       onDone()
     } finally {
       setStarting(false)

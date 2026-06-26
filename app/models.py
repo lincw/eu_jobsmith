@@ -178,6 +178,8 @@ class ResumeRewrite(BaseModel):
 
 class ResumeAssessment(BaseModel):
     """② 履歷健檢報告。"""
+    assessment_mode: str = Field(default="deep", description="deep | fallback")
+    fallback_reason: str = Field(default="", description="備援健檢原因；深度健檢成功時為空")
     overall_score: int = Field(ge=0, le=100, description="整體分數")
     clarity_score: int = Field(ge=0, le=100, description="表達清晰度")
     impact_score: int = Field(ge=0, le=100, description="量化成果/影響力")

@@ -206,6 +206,44 @@ def _clamp_score(value: int) -> int:
     return max(0, min(100, value))
 
 
+def _fallback_role(profile: Profile, resume_text: str) -> str:
+    if profile.preferred_roles:
+        return profile.preferred_roles[0]
+    inferred = _infer_roles(resume_text, profile.skills or [])
+    return inferred[0] if inferred else "目標職稱"
+
+
+def _skill_phrase(skills: list[str], limit: int = 4) -> str:
+    picked = [skill for skill in skills if skill][:limit]
+    return " / ".join(picked) if picked else "核心技能"
+
+
+def _evidence_lines(lines: list[str], skills: list[str]) -> list[str]:
+    skill_terms = [skill.lower() for skill in skills if skill]
+    evidence: list[str] = []
+    for line in lines:
+        lowered = line.lower()
+        has_metric = bool(_METRIC_RE.search(line))
+        has_skill = any(term in lowered for term in skill_terms)
+        has_action = any(marker in lowered for marker in _EXPERIENCE_MARKERS)
+        if has_metric or has_skill or has_action:
+            evidence.append(line)
+    if not evidence:
+        evidence = lines[:2]
+    out: list[str] = []
+    for line in evidence:
+        if line not in out:
+            out.append(line)
+    return out[:4]
+
+
+def _primary_metric(text: str) -> str:
+    for match in _METRIC_RE.findall(text):
+        if re.search(r"\d", match):
+            return match.strip()
+    return "可量化成果"
+
+
 def fallback_resume_assessment(
     resume_text: str,
     profile: Profile,
@@ -217,6 +255,10 @@ def fallback_resume_assessment(
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     metric_hits = _METRIC_RE.findall(text)
     skill_count = len(profile.skills or [])
+    target_role = _fallback_role(profile, text)
+    skill_phrase = _skill_phrase(profile.skills or [])
+    evidence = _evidence_lines(lines, profile.skills or [])
+    primary_metric = _primary_metric(text)
     has_contact = bool(_CONTACT_RE.search(text))
     has_education = bool(profile.education or re.search(r"學歷|大學|碩士|博士|學士", text))
     has_experience = bool(profile.experiences or re.search(r"經歷|工作|專案|負責|開發", text))
@@ -230,12 +272,15 @@ def fallback_resume_assessment(
     overall = round((completeness + clarity + impact + ats_keyword + localization) / 5)
 
     strengths = []
+    strengths.append(f"可辨識的目標定位為 {target_role}，可用 {skill_phrase} 做主軸。")
     if profile.summary:
         strengths.append(f"已能辨識出主要定位：{profile.summary}")
     if skill_count:
         strengths.append(f"履歷中可辨識 {skill_count} 項技能，可作為 ATS 關鍵字基礎。")
     if metric_hits:
-        strengths.append("履歷已有部分數字或改善成果，可再擴大到更多工作經歷。")
+        strengths.append(f"履歷已有量化成果，例如 {primary_metric}；可再擴大到更多工作經歷。")
+    if evidence:
+        strengths.append(f"可用原文成果延伸改寫：{evidence[0][:90]}")
     if not strengths:
         strengths.append("履歷已有可分析的基本內容，但需要補強結構與成果描述。")
 
@@ -277,13 +322,19 @@ def fallback_resume_assessment(
             fix="稍後重試深度健檢；若連續發生，請切換較穩定的 API key 模型或縮短履歷再試。",
         ))
 
-    first_line = lines[0] if lines else "負責後端開發"
+    rewrite_sources = evidence[:2] or (lines[:2] if lines else ["負責後端開發"])
+    if len(rewrite_sources) == 1:
+        rewrite_sources.append(rewrite_sources[0])
     rewrite_examples = [
         ResumeRewrite(
-            original=first_line[:80],
-            improved="使用 FastAPI / PostgreSQL 建置核心 API，將平均處理時間降低 30%，並支援每日 X 筆請求。",
-            why="用技術、成果與數字取代單純職責描述；X 請替換成你的真實數據。",
+            original=line[:120],
+            improved=(
+                f"以 {target_role} 身分使用 {skill_phrase} 完成：{line[:80]}；"
+                f"並補上影響範圍、使用者數或效率變化，例如 {primary_metric}。"
+            ),
+            why="保留原文證據，再補齊角色、技術、成果與量化影響，會比只描述職責更有說服力。",
         )
+        for line in rewrite_sources[:2]
     ]
 
     reason_note = f"原因：{reason}" if reason else "原因：AI 回覆格式不正確。"
@@ -295,6 +346,8 @@ def fallback_resume_assessment(
     )
 
     return ResumeAssessment(
+        assessment_mode="fallback",
+        fallback_reason=reason,
         overall_score=overall,
         clarity_score=clarity,
         impact_score=impact,

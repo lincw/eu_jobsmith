@@ -438,7 +438,11 @@ def test_get_backend_lists_cli_options():
     assert all("available" in o and "label" in o for o in data["options"])
 
 
-def test_post_backend_switches_and_rejects_unsupported():
+def test_post_backend_switches_and_rejects_unsupported(monkeypatch):
+    from pathlib import Path
+    env = Path("_backend_switch_test.env")
+    env.unlink(missing_ok=True)
+    monkeypatch.setenv("COPILOT_ENV_FILE", str(env))
     client = TestClient(server_mod.app)
     try:
         ok = client.post("/api/backend", json={"backend": "codex_cli"})
@@ -447,6 +451,23 @@ def test_post_backend_switches_and_rejects_unsupported():
         assert bad.status_code == 400
     finally:
         client.post("/api/backend", json={"backend": "claude_cli"})  # 還原
+        env.unlink(missing_ok=True)
+
+
+def test_post_backend_persists_selection_for_restart(monkeypatch):
+    from pathlib import Path
+    env = Path("_backend_server_test.env")
+    env.unlink(missing_ok=True)
+    monkeypatch.setenv("COPILOT_ENV_FILE", str(env))
+    client = TestClient(server_mod.app)
+    try:
+        r = client.post("/api/backend", json={"backend": "codex_cli"})
+
+        assert r.status_code == 200
+        assert "LLM_BACKEND=codex_cli" in env.read_text(encoding="utf-8")
+    finally:
+        client.post("/api/backend", json={"backend": "claude_cli"})
+        env.unlink(missing_ok=True)
 
 
 def test_backend_test_reports_success(monkeypatch):
@@ -650,6 +671,37 @@ def test_resume_evaluate_falls_back_when_llm_times_out(monkeypatch):
     assert any(e.get("step") == "fallback" for e in events if e["type"] == "progress")
     assessment = next(e["data"] for e in events if e["type"] == "assessment")
     assert assessment["issues"]
+
+
+def test_resume_evaluate_auto_saves_check_history(monkeypatch):
+    from app.models import Profile, ResumeAssessment, ResumeIssue
+    from app.store import resume_checks
+    resume_checks.delete_all_checks()
+    server_mod._memory.clear_memory()
+    monkeypatch.setattr(server_mod, "structure_profile",
+                        lambda text: Profile(name="Alex Chen", summary="Backend engineer",
+                                             skills=["FastAPI"], raw_text=text))
+    monkeypatch.setattr(server_mod, "evaluate_resume",
+                        lambda text, profile: ResumeAssessment(
+                            overall_score=88, clarity_score=86, impact_score=82,
+                            ats_keyword_score=90, localization_score=89,
+                            completeness_score=87, summary="深度健檢完成",
+                            strengths=["定位清楚"],
+                            issues=[ResumeIssue(severity="low", area="量化成果",
+                                                problem="可再補", fix="加入數字")],
+                        ))
+    client = TestClient(server_mod.app)
+    r = client.post("/api/resume/evaluate", data={"resume_text": "Alex Chen FastAPI backend"})
+    events = _parse_sse(r.text)
+
+    assert [e["type"] for e in events][-1] == "done"
+    rows = resume_checks.list_checks()
+    row = next(r for r in rows if r["label"].startswith("Alex Chen"))
+    assert row["overall_score"] == 88
+    assert row["assessment_mode"] == "deep"
+    detail = client.get(f"/api/resume/checks/{row['id']}").json()
+    assert detail["profile"]["name"] == "Alex Chen"
+    assert detail["assessment"]["summary"] == "深度健檢完成"
 
 
 def test_memory_profile_requires_explicit_save_and_can_delete():

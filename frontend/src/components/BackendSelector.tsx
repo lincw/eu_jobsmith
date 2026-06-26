@@ -5,8 +5,8 @@ import { Cpu, ChevronDown, KeyRound, Settings2, CircleDot, Circle } from "../ui/
 
 // 右上角後端控制台（仿 open-design）：模式（本機 CLI / 自備 Key）→ 代理 → 模型（用時才選）。
 // 連線測試在「執行設定」面板、與選模型分開。anthropic 是有效後端但不在此露出。
-export function BackendSelector() {
-  const be = useBackend()
+export function BackendSelector({ refreshKey = 0 }: { refreshKey?: number }) {
+  const be = useBackend(refreshKey)
   const [open, setOpen] = useState(false)
   const [settings, setSettings] = useState(false)
   const [mode, setMode] = useState<"cli" | "byok">("cli")

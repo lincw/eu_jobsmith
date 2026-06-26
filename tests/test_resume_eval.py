@@ -164,3 +164,37 @@ def test_fallback_resume_assessment_is_usable_when_llm_format_breaks():
     assert "保守備援" in assessment.summary
     assert assessment.strengths
     assert assessment.issues
+
+
+def test_fallback_resume_assessment_uses_resume_specific_evidence():
+    profile = Profile(
+        name="Alex Chen",
+        summary="Backend engineer",
+        skills=["FastAPI", "PostgreSQL", "AWS", "Redis"],
+        experiences=[
+            "Built payment API with FastAPI PostgreSQL AWS and reduced latency by 42% for 120k users.",
+        ],
+        preferred_roles=["Backend Engineer"],
+        raw_text="",
+    )
+    assessment = mod.fallback_resume_assessment(
+        "\n".join([
+            "Alex Chen",
+            "Backend Engineer",
+            "Built payment API with FastAPI PostgreSQL AWS and reduced latency by 42% for 120k users.",
+            "Led Redis cache migration and cut cloud cost by 18%.",
+        ]),
+        profile,
+        reason="Codex CLI returned invalid JSON",
+    )
+
+    combined = " ".join(
+        [assessment.summary, *assessment.strengths]
+        + [issue.problem + " " + issue.fix for issue in assessment.issues]
+        + [rw.original + " " + rw.improved + " " + rw.why for rw in assessment.rewrite_examples]
+    )
+    assert "42%" in combined
+    assert "FastAPI" in combined
+    assert "Backend Engineer" in combined
+    assert len(assessment.issues) >= 3
+    assert len(assessment.rewrite_examples) >= 2

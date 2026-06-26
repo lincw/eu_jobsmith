@@ -94,6 +94,20 @@ def test_privacy_clear_removes_saved_personal_data():
         "parsed_job": {"title": "AI Engineer", "company": "Acme"},
         "match_report": {"score": 80},
     })
+    server_mod._resume_checks.save_check(
+        "Private check",
+        "resume.pdf",
+        {"name": "Private User"},
+        ResumeAssessment(
+            overall_score=80,
+            clarity_score=80,
+            impact_score=80,
+            ats_keyword_score=80,
+            localization_score=80,
+            completeness_score=80,
+            summary="private",
+        ).model_dump(),
+    )
 
     client = TestClient(server_mod.app)
     r = client.delete("/api/privacy-data")
@@ -102,6 +116,7 @@ def test_privacy_clear_removes_saved_personal_data():
     assert r.json()["ok"] is True
     assert server_mod._memory.get_memory() == {"profile": None, "preferences": {}}
     assert server_mod._searches.list_searches() == []
+    assert server_mod._resume_checks.list_checks() == []
     assert server_mod._history.list_packages() == []
 
 

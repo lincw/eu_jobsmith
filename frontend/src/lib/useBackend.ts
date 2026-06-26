@@ -18,7 +18,7 @@ function postJSON(url: string, body: unknown, signal?: AbortSignal) {
   return fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal })
 }
 
-export function useBackend() {
+export function useBackend(reloadKey = 0) {
   const [data, setData] = useState<BackendData | null>(null)
   const [busy, setBusy] = useState(false)
   const [tests, setTests] = useState<Record<string, TestState>>({})
@@ -35,7 +35,7 @@ export function useBackend() {
     // 初次載入後端清單；reload 在 await 之後才 setState（非渲染期同步），是 effect 正當用途。
     // eslint-disable-next-line react-hooks/set-state-in-effect
     reload()
-  }, [])
+  }, [reloadKey])
 
   async function activate(id: string) {
     setBusy(true)

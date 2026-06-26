@@ -30,6 +30,7 @@ from app.sources.registry import linkedin_search_url, search_all
 from app.store import db as _appdb
 from app.store import history as _history
 from app.store import memory as _memory
+from app.store import resume_checks as _resume_checks
 from app.store import searches as _searches
 
 app = FastAPI(title="Jobsmith")
@@ -265,6 +266,7 @@ def resume_evaluate(
     resume_text: str = Form(default=""),
     task_id: str = Form(default=""),
 ):
+    resume_label = file.filename if file and file.filename else ("貼上文字" if resume_text.strip() else "")
     text, text_error = _resume_text_from_request(file, resume_text)
     token = _task_from_id(task_id)
 
@@ -318,7 +320,14 @@ def resume_evaluate(
                 "step": "finalize",
                 "message": "整理健檢報告中…",
             })
-            yield _sse({"type": "assessment", "data": assessment})
+            check_id = _resume_checks.save_check(
+                label="",
+                resume_label=resume_label,
+                profile=profile.model_dump(),
+                assessment=assessment.model_dump(),
+            )
+            yield _sse({"type": "saved_check", "id": check_id})
+            yield _sse({"type": "assessment", "data": assessment.model_dump()})
             yield _sse({"type": "done"})
         except task_control.TaskCancelled:
             yield _stopped_sse()
@@ -630,7 +639,7 @@ class BackendBody(BaseModel):
 def post_backend(body: BackendBody):
     """切換 LLM 後端（執行期，單人本機）。選了即生效，不以測試結果為門檻。"""
     try:
-        settings.set_backend(body.backend)
+        settings.set_backend(body.backend, persist=True)
     except ValueError as e:
         return JSONResponse({"error": str(e)}, status_code=400)
     return {"current": settings.current_backend()}
@@ -997,6 +1006,7 @@ def privacy_data_delete():
     """Clear locally stored resume/profile data, saved searches, and generated packages."""
     _memory.clear_memory()
     _searches.delete_all_searches()
+    _resume_checks.delete_all_checks()
     _history.delete_all_packages()
     with _RUNS_LOCK:
         _RUNS.clear()
@@ -1044,6 +1054,25 @@ def history_approve(pid: int):
 @app.delete("/api/history/{pid}")
 def history_delete(pid: int):
     _history.delete_package(pid)
+    return {"ok": True}
+
+
+@app.get("/api/resume/checks")
+def resume_checks_list():
+    return {"checks": _resume_checks.list_checks()}
+
+
+@app.get("/api/resume/checks/{cid}")
+def resume_checks_get(cid: int):
+    check = _resume_checks.get_check(cid)
+    if check is None:
+        return JSONResponse({"error": "找不到該健檢紀錄"}, status_code=404)
+    return check
+
+
+@app.delete("/api/resume/checks/{cid}")
+def resume_checks_delete(cid: int):
+    _resume_checks.delete_check(cid)
     return {"ok": True}
 
 

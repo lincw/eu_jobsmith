@@ -48,12 +48,14 @@ def current_backend() -> str:
     return _current_backend
 
 
-def set_backend(name: str) -> None:
+def set_backend(name: str, *, persist: bool = False) -> None:
     """切換 LLM 後端（供 UI 設定用）；只接受 SUPPORTED_BACKENDS。"""
     global _current_backend
     if name not in SUPPORTED_BACKENDS:
         raise ValueError(f"unsupported backend: {name!r}（可選：{', '.join(SUPPORTED_BACKENDS)}）")
     _current_backend = name
+    if persist:
+        _write_env({"LLM_BACKEND": _current_backend})
 
 
 # ---------------------------------------------------------------------------
