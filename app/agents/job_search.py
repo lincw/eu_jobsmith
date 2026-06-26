@@ -146,6 +146,11 @@ def _fallback_rank_jobs(profile: Profile, jobs: list[JobPosting], top_k: int | N
     return matches if top_k is None else matches[:top_k]
 
 
+def fallback_rank_jobs(profile: Profile, jobs: list[JobPosting], top_k: int | None = None) -> list[JobMatch]:
+    """Public fallback scorer for callers that need to recover from batch-level failures."""
+    return _fallback_rank_jobs(profile, jobs, top_k)
+
+
 def rank_jobs(profile: Profile, jobs: list[JobPosting], top_k: int | None = None) -> list[JobMatch]:
     """以一次 LLM 呼叫對職缺評分排序（standard 分層）。
 
@@ -165,6 +170,8 @@ def rank_jobs(profile: Profile, jobs: list[JobPosting], top_k: int | None = None
     try:
         out = llm.invoke([("system", RANK_SYSTEM), ("human", human)])
     except Exception:
+        return _fallback_rank_jobs(profile, jobs + overflow, top_k)
+    if not out.rankings:
         return _fallback_rank_jobs(profile, jobs + overflow, top_k)
     by_idx = {r.index: r for r in out.rankings}
 

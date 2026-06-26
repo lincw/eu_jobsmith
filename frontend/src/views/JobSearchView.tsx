@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react"
 import type { ChangeEvent, KeyboardEvent as ReactKeyboardEvent } from "react"
-import type { JobMatch, UserProfile, JobsAutoEvent } from "../types"
+import type { CandidateProfile, JobMatch, UserProfile, JobsAutoEvent } from "../types"
 import { readSSE } from "../sse"
 import { SAMPLE_RESUME } from "../sampleResume"
 import { resolveJd } from "../lib/resolveJd"
+import { profileDisplayName, profileSummary } from "../lib/profiles"
 import { JobList } from "../components/jobs/JobList"
 import { SRC_LABEL } from "../lib/sources"
 import { Card } from "../ui/Card"
@@ -11,7 +12,7 @@ import { Button } from "../ui/Button"
 import { Badge } from "../ui/Badge"
 import { Skeleton } from "../ui/Skeleton"
 import { EmptyState } from "../ui/EmptyState"
-import { Search, Upload, Loader2, ExternalLink, AlertTriangle, CheckCircle2, XCircle, Building2, Layers, MapPin, X } from "../ui/icons"
+import { Search, Upload, Loader2, ExternalLink, AlertTriangle, CheckCircle2, XCircle, Building2, Layers, MapPin, X, UserRound } from "../ui/icons"
 
 const SNAP_KEY = "copilot.jobsearch.v1"  // 上次搜尋結果快取（重新整理/重開沿用）
 
@@ -45,10 +46,11 @@ function mergeSource(arr: SourceStat[], ev: { source: string; count: number; blo
 }
 
 export function JobSearchView(
-  { onPick, onProfile, formOpen, setFormOpen, onHasResults }:
+  { onPick, onProfile, activeProfile, formOpen, setFormOpen, onHasResults }:
   {
     onPick: (jd: string, profile?: UserProfile | null) => void
     onProfile?: (p: UserProfile, meta?: { label?: string; resumeLabel?: string }) => void
+    activeProfile?: CandidateProfile | null
     formOpen: boolean                    // 搜尋表單是否展開（提升到 App，收合鈕放右上角）
     setFormOpen: (v: boolean) => void
     onHasResults?: (v: boolean) => void  // 回報是否已有結果，App 才知道要不要顯示收合鈕
@@ -160,9 +162,17 @@ export function JobSearchView(
     } catch { /* 存檔失敗不影響使用 */ }
   }
 
-  async function go(form: FormData) {
+  function appendSearchOptions(form: FormData) {
+    form.append("pages", String(pages))
+    if (regions.length) form.append("region", regions.join(","))
+  }
+
+  async function go(
+    form: FormData,
+    opts: { resumeLabel?: string; updateActiveProfile?: boolean; initialStatus?: string } = {},
+  ) {
     const trailing = companyInput.trim()
-    const resumeLabel = file ? file.name : "貼上的履歷"
+    const resumeLabel = opts.resumeLabel || (file ? file.name : "貼上的履歷")
     const cs = trailing ? (companies.includes(trailing) ? companies : [...companies, trailing]) : companies
     if (trailing) { setCompanies(cs); setCompanyInput("") }
     if (cs.length) form.append("companies", cs.join(","))
@@ -174,7 +184,7 @@ export function JobSearchView(
 
     setBusy(true); setDone(false); setError(""); setJobs([]); setCompanyJobs([]); setQueries([]); setSources([])
     setLinkedin(""); setProfile(null); setBlockedNote(""); setFallback(false); setRankTotal(0)
-    setStatus("上傳中…")
+    setStatus(opts.initialStatus || "上傳中…")
     // 串流累積（供完成後存檔；state 更新非同步，存檔讀這裡的即時值）。
     const acc: SearchAcc = { jobs: [], companyJobs: [], queries: [], sources: [], linkedin: "", fallback: false, profile: null }
     let hadError = false
@@ -185,7 +195,9 @@ export function JobSearchView(
         else if (ev.type === "profile") {
           acc.profile = ev.data
           setProfile(ev.data as UserProfile)
-          onProfile?.(ev.data as UserProfile, { resumeLabel })
+          if (opts.updateActiveProfile !== false) {
+            onProfile?.(ev.data as UserProfile, { resumeLabel })
+          }
         }
         else if (ev.type === "queries") { acc.queries = ev.queries; setQueries(ev.queries) }
         else if (ev.type === "source") { acc.sources = mergeSource(acc.sources, ev); setSources((s) => mergeSource(s, ev)) }
@@ -219,12 +231,30 @@ export function JobSearchView(
     } else if (text.trim()) {
       form.append("resume_text", text)
     } else {
-      setError("請先貼上履歷文字，或上傳履歷檔案"); return
+      setError(activeProfile
+        ? "請貼上/上傳新履歷，或按「用目前 Profile 搜尋」。"
+        : "請先貼上履歷文字，或上傳履歷檔案")
+      return
     }
-    form.append("pages", String(pages))
-    if (regions.length) form.append("region", regions.join(","))
+    appendSearchOptions(form)
     go(form)
   }
+
+  function onStartWithActiveProfile() {
+    if (!activeProfile) {
+      setError("目前沒有可用的 Profile，請先貼上或上傳履歷。")
+      return
+    }
+    const form = new FormData()
+    form.append("profile_json", JSON.stringify(activeProfile.profile))
+    appendSearchOptions(form)
+    go(form, {
+      resumeLabel: activeProfile.resumeLabel || activeProfile.label || "目前 Profile",
+      updateActiveProfile: false,
+      initialStatus: "準備搜尋…",
+    })
+  }
+
   function onFile(e: ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]; if (!f) return
     setFile(f); setError(""); e.target.value = ""
@@ -246,6 +276,21 @@ export function JobSearchView(
           丟上你的履歷，AI 自動推導關鍵字、搜尋 104 / Yourator / LinkedIn / Cake 並依履歷排序；
           也可加入想去的公司，單獨列出它們的開缺。填好後按「開始自動找職缺」。
         </p>
+        {activeProfile && (
+          <div className="mb-3 rounded-lg border border-brand-200 bg-brand-50/50 p-3 flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-brand-900 flex items-center gap-1.5">
+                <UserRound className="w-4 h-4" />目前 Profile：{profileDisplayName(activeProfile.profile)}
+              </p>
+              <p className="text-xs text-brand-700 mt-0.5 truncate">
+                {profileSummary(activeProfile.profile)}
+              </p>
+            </div>
+            <Button variant="secondary" size="sm" icon={Search} onClick={onStartWithActiveProfile} disabled={busy}>
+              用目前 Profile 搜尋
+            </Button>
+          </div>
+        )}
         <textarea
           className="w-full border border-slate-300 rounded-lg p-3 text-sm h-32 focus:outline-none focus:ring-2 focus:ring-brand-200 disabled:bg-slate-50"
           placeholder="貼上履歷文字…（或用下方上傳履歷檔案）"

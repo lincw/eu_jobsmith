@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import type { CandidateProfile, Preferences } from "../types"
 import { profileDisplayName, profileRoles, profileSkills, profileSummary } from "../lib/profiles"
 import { Badge } from "../ui/Badge"
@@ -34,24 +34,7 @@ export function CandidateProfileManager(
     compact?: boolean
   },
 ) {
-  const [label, setLabel] = useState(activeProfile?.label || "")
-  const [saved, setSaved] = useState(false)
-
-  useEffect(() => {
-    setLabel(activeProfile?.label || "")
-    setSaved(false)
-  }, [activeProfile?.id, activeProfile?.label])
-
   const selectedId = profiles.some((p) => p.id === activeProfile?.id) ? activeProfile?.id : ""
-  const skills = profileSkills(activeProfile?.profile, 6)
-  const roles = profileRoles(activeProfile?.profile, preferences)
-  const activeIsSaved = Boolean(activeProfile?.saved && selectedId)
-
-  async function saveActive() {
-    if (!activeProfile || !onSaveActiveProfile) return
-    await onSaveActiveProfile(label)
-    setSaved(true)
-  }
 
   return (
     <div className="space-y-4">
@@ -68,45 +51,14 @@ export function CandidateProfileManager(
       </div>
 
       {activeProfile ? (
-        <div className="border border-slate-200 rounded-lg p-4 bg-white">
-          <div className="flex flex-wrap items-start gap-3 justify-between">
-            <div className="min-w-0">
-              <p className="font-medium text-slate-900 truncate">{profileDisplayName(activeProfile.profile)}</p>
-              <p className="text-sm text-slate-600 mt-0.5">{profileSummary(activeProfile.profile)}</p>
-            </div>
-            {activeIsSaved && <span className="text-xs text-emerald-700 inline-flex items-center gap-1">
-              <CheckCircle2 className="w-3.5 h-3.5" />已儲存
-            </span>}
-          </div>
-          <dl className="grid sm:grid-cols-2 gap-3 mt-4">
-            <Meta label="Profile 名稱" value={activeProfile.label} />
-            <Meta label="履歷" value={activeProfile.resumeLabel || "已解析履歷"} />
-            <Meta label="目標職稱" value={roles.join("、")} />
-            <Meta label="想強調技能" value={(preferences?.emphasize_skills?.length ? preferences.emphasize_skills : skills).join("、")} />
-            <Meta label="語氣" value={preferences?.tone || ""} />
-            <Meta label="更新時間" value={fmtDate(activeProfile.updatedAt)} />
-          </dl>
-          {onSaveActiveProfile && (
-            <div className="mt-4 flex flex-col sm:flex-row gap-2">
-              <input
-                value={label}
-                onChange={(e) => { setLabel(e.target.value); setSaved(false) }}
-                aria-label="Profile 名稱"
-                className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-200"
-                placeholder="Profile 名稱"
-              />
-              <Button icon={Save} onClick={saveActive}>
-                {activeIsSaved ? "更新 Profile" : "儲存為 Profile"}
-              </Button>
-              {onClearActiveProfile && (
-                <Button variant="secondary" icon={X} onClick={onClearActiveProfile}>不使用 Profile</Button>
-              )}
-            </div>
-          )}
-          {saved && <p className="text-sm text-emerald-700 mt-2 inline-flex items-center gap-1">
-            <CheckCircle2 className="w-4 h-4" />Profile 已儲存
-          </p>}
-        </div>
+        <ActiveProfileCard
+          key={`${activeProfile.id}-${activeProfile.label}`}
+          activeProfile={activeProfile}
+          activeIsSaved={Boolean(activeProfile.saved && selectedId)}
+          preferences={preferences}
+          onSaveActiveProfile={onSaveActiveProfile}
+          onClearActiveProfile={onClearActiveProfile}
+        />
       ) : (
         <div className="border border-dashed border-slate-300 rounded-lg p-4 bg-slate-50 text-sm text-slate-600">
           目前未選 Profile。手動選擇已儲存 Profile，或先到「自動找職缺 / 履歷健檢」提供履歷。
@@ -159,6 +111,70 @@ export function CandidateProfileManager(
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+function ActiveProfileCard(
+  { activeProfile, activeIsSaved, preferences, onSaveActiveProfile, onClearActiveProfile }:
+  {
+    activeProfile: CandidateProfile
+    activeIsSaved: boolean
+    preferences?: Preferences
+    onSaveActiveProfile?: (label?: string) => void | Promise<void>
+    onClearActiveProfile?: () => void
+  },
+) {
+  const [label, setLabel] = useState(activeProfile.label || "")
+  const [saved, setSaved] = useState(false)
+  const skills = profileSkills(activeProfile.profile, 6)
+  const roles = profileRoles(activeProfile.profile, preferences)
+
+  async function saveActive() {
+    if (!onSaveActiveProfile) return
+    await onSaveActiveProfile(label)
+    setSaved(true)
+  }
+
+  return (
+    <div className="border border-slate-200 rounded-lg p-4 bg-white">
+      <div className="flex flex-wrap items-start gap-3 justify-between">
+        <div className="min-w-0">
+          <p className="font-medium text-slate-900 truncate">{profileDisplayName(activeProfile.profile)}</p>
+          <p className="text-sm text-slate-600 mt-0.5">{profileSummary(activeProfile.profile)}</p>
+        </div>
+        {activeIsSaved && <span className="text-xs text-emerald-700 inline-flex items-center gap-1">
+          <CheckCircle2 className="w-3.5 h-3.5" />已儲存
+        </span>}
+      </div>
+      <dl className="grid sm:grid-cols-2 gap-3 mt-4">
+        <Meta label="Profile 名稱" value={activeProfile.label} />
+        <Meta label="履歷" value={activeProfile.resumeLabel || "已解析履歷"} />
+        <Meta label="目標職稱" value={roles.join("、")} />
+        <Meta label="想強調技能" value={(preferences?.emphasize_skills?.length ? preferences.emphasize_skills : skills).join("、")} />
+        <Meta label="語氣" value={preferences?.tone || ""} />
+        <Meta label="更新時間" value={fmtDate(activeProfile.updatedAt)} />
+      </dl>
+      {onSaveActiveProfile && (
+        <div className="mt-4 flex flex-col sm:flex-row gap-2">
+          <input
+            value={label}
+            onChange={(e) => { setLabel(e.target.value); setSaved(false) }}
+            aria-label="Profile 名稱"
+            className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-200"
+            placeholder="Profile 名稱"
+          />
+          <Button icon={Save} onClick={saveActive}>
+            {activeIsSaved ? "更新 Profile" : "儲存為 Profile"}
+          </Button>
+          {onClearActiveProfile && (
+            <Button variant="secondary" icon={X} onClick={onClearActiveProfile}>不使用 Profile</Button>
+          )}
+        </div>
+      )}
+      {saved && <p className="text-sm text-emerald-700 mt-2 inline-flex items-center gap-1">
+        <CheckCircle2 className="w-4 h-4" />Profile 已儲存
+      </p>}
     </div>
   )
 }

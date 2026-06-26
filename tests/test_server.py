@@ -294,6 +294,74 @@ def test_jobs_auto_emits_profile_event(monkeypatch):
     assert prof["data"]["raw_text"] == "我的履歷原文 Python"  # 含原文供 pipeline 帶入
 
 
+def test_jobs_auto_reuses_posted_profile_json_without_reparsing(monkeypatch):
+    from app.models import JobPosting, JobMatch, SearchResult
+
+    def fail_structure_profile(text):
+        raise AssertionError("structure_profile should not run when profile_json is provided")
+
+    captured = {}
+    monkeypatch.setattr(server_mod, "structure_profile", fail_structure_profile)
+    monkeypatch.setattr(server_mod, "derive_queries", lambda profile: ["Python 後端"])
+
+    def fake_search(q, limit=10, pages=1, area=None):
+        captured["query"] = q
+        captured["area"] = area
+        return [SearchResult(source="104", jobs=[
+            JobPosting(source="104", title="後端工程師", company="C", url="u1",
+                       location="台北市信義區"),
+        ])]
+
+    def fake_rank(profile, jobs, top_k=None):
+        captured["profile_name"] = profile.name
+        return [JobMatch(job=jobs[0], fit_score=88)]
+
+    monkeypatch.setattr(server_mod, "search_all", fake_search)
+    monkeypatch.setattr(server_mod, "rank_jobs", fake_rank)
+
+    client = TestClient(server_mod.app)
+    r = client.post("/api/jobs/auto", data={
+        "profile_json": json.dumps({
+            "name": "王小明",
+            "summary": "Python 後端工程師",
+            "skills": ["Python", "FastAPI"],
+            "raw_text": "已解析過的履歷",
+        }),
+        "region": "台北市",
+    })
+
+    events = _parse_sse(r.text)
+    assert r.status_code == 200
+    assert not any(e["type"] == "error" for e in events)
+    assert next(e for e in events if e["type"] == "profile")["data"]["name"] == "王小明"
+    assert captured["profile_name"] == "王小明"
+    assert captured["query"] == "Python 後端"
+    assert captured["area"] == ["6001001000"]
+
+
+def test_rank_in_batches_falls_back_when_ranker_raises(monkeypatch):
+    from app.models import Profile, JobPosting
+
+    def fail_rank(profile, jobs, top_k=None):
+        raise RuntimeError("empty rankings from backend")
+
+    monkeypatch.setattr(server_mod, "rank_jobs", fail_rank)
+    profile = Profile(name="王", summary="後端", skills=["Python"], raw_text="r")
+    jobs = [
+        JobPosting(source="104", title="Python 後端工程師", company="C", url="u1",
+                   snippet="FastAPI Python"),
+        JobPosting(source="104", title="行銷企劃", company="C", url="u2",
+                   snippet="社群內容"),
+    ]
+
+    batches = list(server_mod._rank_in_batches(profile, jobs, batch=2, workers=1))
+    ranked = [m for batch in batches for m in batch]
+
+    assert ranked[0].job.title == "Python 後端工程師"
+    assert ranked[0].fit_score > ranked[1].fit_score
+    assert ranked[0].reason != "未評分"
+
+
 def test_get_backend_lists_cli_options():
     client = TestClient(server_mod.app)
     r = client.get("/api/backend")

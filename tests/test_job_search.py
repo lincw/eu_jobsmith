@@ -84,6 +84,22 @@ def test_rank_jobs_fallback_when_llm_fails(monkeypatch):
     assert "Python" in out[0].matched
 
 
+def test_rank_jobs_fallback_when_llm_returns_empty_rankings(monkeypatch):
+    canned = mod._RankResult(rankings=[])
+    monkeypatch.setattr(mod, "get_llm", lambda tier, **k: FakeLLM(canned))
+    profile = Profile(name="王", summary="後端", skills=["Python"], raw_text="r")
+    jobs = [
+        JobPosting(source="104", title="Python 後端工程師", company="C1", url="u1", snippet="FastAPI Python"),
+        JobPosting(source="104", title="行銷企劃", company="C2", url="u2", snippet="社群內容"),
+    ]
+
+    out = mod.rank_jobs(profile, jobs)
+
+    assert out[0].job.title == "Python 後端工程師"
+    assert out[0].fit_score > out[1].fit_score
+    assert out[0].reason != "未評分"
+
+
 def test_rank_jobs_stable_tiebreak_by_url(monkeypatch):
     # 同分時以 url 決定先後 → 顯示順序可重現，不隨輸入/批次到達順序變動。
     canned = mod._RankResult(rankings=[

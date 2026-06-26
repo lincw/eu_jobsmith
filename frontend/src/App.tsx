@@ -202,7 +202,7 @@ export default function App() {
 
           {/* 分頁全掛載只切顯示，保留狀態 */}
           <div key={`search-${privacyVersion}`} className={tab === "search" ? "" : "hidden"}>
-            <JobSearchView onPick={pickJob} onProfile={activateSessionProfile}
+            <JobSearchView onPick={pickJob} onProfile={activateSessionProfile} activeProfile={activeProfile}
               formOpen={searchFormOpen} setFormOpen={setSearchFormOpen} onHasResults={setSearchHasResults} />
           </div>
           <div key={`searches-${privacyVersion}`} className={tab === "searches" ? "" : "hidden"}>

@@ -20,10 +20,10 @@ from langgraph.checkpoint.memory import MemorySaver
 from app import settings
 from app.cli import load_profile
 from app.graph import build_graph
-from app.models import Profile, JobMatch
+from app.models import Profile
 from app.intake.resume_parser import extract_text
 from app.agents.resume_eval import structure_profile, evaluate_resume
-from app.agents.job_search import derive_queries, rank_jobs
+from app.agents.job_search import derive_queries, fallback_rank_jobs, rank_jobs
 from app.agents.company_jobs import find_company_jobs
 from app.sources.registry import search_all, linkedin_search_url
 from app.sources import regions
@@ -80,6 +80,19 @@ def _resume_text_from_request(file: UploadFile | None, resume_text: str) -> tupl
         return "", str(exc)
     except Exception as exc:  # noqa: BLE001
         return "", f"resume file could not be parsed: {_err_detail(exc)}"
+
+
+def _profile_from_json(raw: str) -> tuple[Profile | None, str | None]:
+    if not (raw or "").strip():
+        return None, None
+    try:
+        data = json.loads(raw)
+        profile = Profile(**data)
+        if not (profile.name.strip() or profile.summary.strip()):
+            return None, "已儲存 Profile 缺少姓名與定位摘要，請重新上傳履歷。"
+        return profile, None
+    except Exception as exc:  # noqa: BLE001
+        return None, f"已儲存 Profile 格式無法讀取：{_err_detail(exc)}"
 
 
 def _err_detail(exc: Exception) -> str:
@@ -256,7 +269,7 @@ def _rank_in_batches(profile, jobs, batch: int = _RANK_BATCH, workers: int = 4):
             try:
                 yield fut.result()
             except Exception:  # noqa: BLE001 — 單批失敗不影響其他批
-                yield [JobMatch(job=j, fit_score=0, reason="未評分") for j in futs[fut]]
+                yield fallback_rank_jobs(profile, futs[fut], top_k=None)
 
 
 def _parse_companies(raw: str) -> list[str]:
@@ -274,6 +287,7 @@ def _parse_companies(raw: str) -> list[str]:
 def jobs_auto(
     file: UploadFile | None = File(default=None),
     resume_text: str = Form(default=""),
+    profile_json: str = Form(default=""),
     companies: str = Form(default=""),
     pages: int = Form(default=2),
     region: str = Form(default=""),
@@ -288,6 +302,7 @@ def jobs_auto(
     region_keys = regions.parse_keys(region)
     area = regions.area_codes(region_keys)
     text, text_error = _resume_text_from_request(file, resume_text)
+    posted_profile, profile_error = (None, None) if text.strip() else _profile_from_json(profile_json)
     company_list = _parse_companies(companies)
 
     def gen():
@@ -295,12 +310,20 @@ def jobs_auto(
         if text_error:
             yield _sse({"type": "error", "message": text_error})
             return
-        if not text.strip():
+        if profile_error:
+            yield _sse({"type": "error", "message": profile_error})
+            return
+        if not text.strip() and posted_profile is None:
             yield _sse({"type": "error", "message": "請提供履歷檔案或文字"})
             return
         try:
-            yield _sse({"type": "progress", "step": "structure", "message": "解析履歷中…"})
-            profile = structure_profile(text)
+            if text.strip():
+                yield _sse({"type": "progress", "step": "structure", "message": "解析履歷中…"})
+                profile = structure_profile(text)
+            else:
+                yield _sse({"type": "progress", "step": "profile", "message": "使用目前 Profile…"})
+                profile = posted_profile
+                assert profile is not None
             # 把使用者真實履歷（含 raw_text 原文）送給前端，供「產生投遞包」時整包帶入 pipeline，
             # 讓 match/resume/cover/interview agent 拿到逐字履歷（檔案上傳時前端沒有原文，必須由後端帶）。
             yield _sse({"type": "profile", "data": profile.model_dump()})
