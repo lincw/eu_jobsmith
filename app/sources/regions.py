@@ -1,30 +1,171 @@
-"""台灣縣市清單與各來源的地區對應。
+"""EU country list shared by the frontend region picker and result-side location filtering.
 
-單一真實來源：前端的地區格、104 來源端 `area` 代碼、以及結果端 location 過濾，
-都共用這份表。code 取自 104 官方 Area.json（新竹、嘉義 104 本就縣市併為一碼）。
+key:     display label shown in the UI; also passed verbatim to the LinkedIn API as the
+         location string (LinkedIn accepts country names and "European Union" directly).
+code:    ISO 3166-1 alpha-2 — kept for reference; not used by any job-board API.
+aliases: lowercase substrings matched against job.location for result-side filtering.
+         Includes local-language name and major cities so city-level results are not
+         filtered out when the user selects a country.
 """
 from __future__ import annotations
 
-# 順序與前端地區格一致（離島 澎湖／金門／連江 暫不列，與參考截圖相同）。
-# key：顯示文字（前端直接顯示、後端據此回查）；code：104 area 代碼；aliases：結果端 location 子字串比對。
 REGIONS: list[dict] = [
-    {"key": "台北市", "code": "6001001000", "aliases": ["台北", "臺北", "taipei"]},
-    {"key": "新北市", "code": "6001002000", "aliases": ["新北", "new taipei"]},
-    {"key": "桃園市", "code": "6001005000", "aliases": ["桃園", "taoyuan"]},
-    {"key": "台中市", "code": "6001008000", "aliases": ["台中", "臺中", "taichung"]},
-    {"key": "台南市", "code": "6001014000", "aliases": ["台南", "臺南", "tainan"]},
-    {"key": "高雄市", "code": "6001016000", "aliases": ["高雄", "kaohsiung"]},
-    {"key": "基隆市", "code": "6001004000", "aliases": ["基隆", "keelung"]},
-    {"key": "新竹縣市", "code": "6001006000", "aliases": ["新竹", "hsinchu"]},
-    {"key": "苗栗縣", "code": "6001007000", "aliases": ["苗栗", "miaoli"]},
-    {"key": "彰化縣", "code": "6001010000", "aliases": ["彰化", "changhua"]},
-    {"key": "南投縣", "code": "6001011000", "aliases": ["南投", "nantou"]},
-    {"key": "雲林縣", "code": "6001012000", "aliases": ["雲林", "yunlin"]},
-    {"key": "嘉義縣市", "code": "6001013000", "aliases": ["嘉義", "chiayi"]},
-    {"key": "屏東縣", "code": "6001018000", "aliases": ["屏東", "pingtung"]},
-    {"key": "宜蘭縣", "code": "6001003000", "aliases": ["宜蘭", "yilan"]},
-    {"key": "花蓮縣", "code": "6001020000", "aliases": ["花蓮", "hualien"]},
-    {"key": "台東縣", "code": "6001019000", "aliases": ["台東", "臺東", "taitung"]},
+    # ── Pan-EU ───────────────────────────────────────────────────────────────
+    {
+        "key": "European Union",
+        "code": "eu",
+        "aliases": [
+            "european union", "europe",
+            # all 27 member states listed so any EU city-level result passes through
+            "germany", "france", "italy", "spain", "poland", "netherlands",
+            "belgium", "sweden", "austria", "denmark", "finland", "ireland",
+            "portugal", "czech", "romania", "hungary", "slovakia", "bulgaria",
+            "croatia", "slovenia", "estonia", "latvia", "lithuania",
+            "luxembourg", "cyprus", "malta", "greece",
+        ],
+    },
+    # ── Germany (primary target) ──────────────────────────────────────────────
+    {
+        "key": "Germany",
+        "code": "de",
+        "aliases": [
+            "germany", "deutschland",
+            "berlin", "munich", "münchen", "hamburg", "frankfurt",
+            "cologne", "köln", "düsseldorf", "stuttgart", "dortmund",
+            "essen", "leipzig", "bremen", "dresden", "hannover", "nuremberg", "nürnberg",
+        ],
+    },
+    # ── Remaining 26 EU member states (alphabetical) ─────────────────────────
+    {
+        "key": "Austria",
+        "code": "at",
+        "aliases": ["austria", "österreich", "vienna", "wien", "graz", "linz"],
+    },
+    {
+        "key": "Belgium",
+        "code": "be",
+        "aliases": ["belgium", "belgique", "belgië", "brussels", "bruxelles", "brussel", "antwerp", "ghent"],
+    },
+    {
+        "key": "Bulgaria",
+        "code": "bg",
+        "aliases": ["bulgaria", "sofia", "plovdiv"],
+    },
+    {
+        "key": "Croatia",
+        "code": "hr",
+        "aliases": ["croatia", "hrvatska", "zagreb", "split"],
+    },
+    {
+        "key": "Cyprus",
+        "code": "cy",
+        "aliases": ["cyprus", "nicosia", "limassol"],
+    },
+    {
+        "key": "Czech Republic",
+        "code": "cz",
+        "aliases": ["czech", "czechia", "prague", "praha", "brno"],
+    },
+    {
+        "key": "Denmark",
+        "code": "dk",
+        "aliases": ["denmark", "danmark", "copenhagen", "københavn", "aarhus"],
+    },
+    {
+        "key": "Estonia",
+        "code": "ee",
+        "aliases": ["estonia", "eesti", "tallinn", "tartu"],
+    },
+    {
+        "key": "Finland",
+        "code": "fi",
+        "aliases": ["finland", "suomi", "helsinki", "espoo", "tampere"],
+    },
+    {
+        "key": "France",
+        "code": "fr",
+        "aliases": ["france", "paris", "lyon", "marseille", "toulouse", "bordeaux", "lille", "nice"],
+    },
+    {
+        "key": "Greece",
+        "code": "gr",
+        "aliases": ["greece", "ellada", "athens", "athina", "thessaloniki"],
+    },
+    {
+        "key": "Hungary",
+        "code": "hu",
+        "aliases": ["hungary", "magyarország", "budapest", "debrecen"],
+    },
+    {
+        "key": "Ireland",
+        "code": "ie",
+        "aliases": ["ireland", "éire", "dublin", "cork", "galway"],
+    },
+    {
+        "key": "Italy",
+        "code": "it",
+        "aliases": ["italy", "italia", "rome", "roma", "milan", "milano", "turin", "torino", "florence", "firenze", "naples"],
+    },
+    {
+        "key": "Latvia",
+        "code": "lv",
+        "aliases": ["latvia", "latvija", "riga"],
+    },
+    {
+        "key": "Lithuania",
+        "code": "lt",
+        "aliases": ["lithuania", "lietuva", "vilnius", "kaunas"],
+    },
+    {
+        "key": "Luxembourg",
+        "code": "lu",
+        "aliases": ["luxembourg", "luxemburg"],
+    },
+    {
+        "key": "Malta",
+        "code": "mt",
+        "aliases": ["malta", "valletta"],
+    },
+    {
+        "key": "Netherlands",
+        "code": "nl",
+        "aliases": ["netherlands", "nederland", "holland", "amsterdam", "rotterdam", "eindhoven", "utrecht", "the hague", "den haag"],
+    },
+    {
+        "key": "Poland",
+        "code": "pl",
+        "aliases": ["poland", "polska", "warsaw", "warszawa", "krakow", "kraków", "wroclaw", "wrocław", "gdansk"],
+    },
+    {
+        "key": "Portugal",
+        "code": "pt",
+        "aliases": ["portugal", "lisbon", "lisboa", "porto"],
+    },
+    {
+        "key": "Romania",
+        "code": "ro",
+        "aliases": ["romania", "românia", "bucharest", "bucurești", "cluj", "timisoara"],
+    },
+    {
+        "key": "Slovakia",
+        "code": "sk",
+        "aliases": ["slovakia", "slovensko", "bratislava", "košice"],
+    },
+    {
+        "key": "Slovenia",
+        "code": "si",
+        "aliases": ["slovenia", "slovenija", "ljubljana", "maribor"],
+    },
+    {
+        "key": "Spain",
+        "code": "es",
+        "aliases": ["spain", "españa", "madrid", "barcelona", "valencia", "seville", "sevilla", "bilbao"],
+    },
+    {
+        "key": "Sweden",
+        "code": "se",
+        "aliases": ["sweden", "sverige", "stockholm", "gothenburg", "göteborg", "malmö", "malmo"],
+    },
 ]
 
 _BY_KEY = {r["key"]: r for r in REGIONS}
@@ -32,7 +173,7 @@ KEYS = [r["key"] for r in REGIONS]
 
 
 def parse_keys(raw: str | None) -> list[str]:
-    """前端傳來的逗號字串 → 有效縣市 key（保序、去重、丟掉未知值）。"""
+    """Comma-separated region keys from the frontend → validated, deduped, ordered list."""
     out: list[str] = []
     for part in (raw or "").split(","):
         k = part.strip()
@@ -42,17 +183,17 @@ def parse_keys(raw: str | None) -> list[str]:
 
 
 def area_codes(keys: list[str]) -> list[str]:
-    """選定縣市 → 104 area 代碼（保序去重）。"""
-    out: list[str] = []
-    for k in keys:
-        r = _BY_KEY.get(k)
-        if r and r["code"] not in out:
-            out.append(r["code"])
-    return out
+    """Return job-board area codes for the selected keys.
+
+    EU country entries have no job-board area code (code is an ISO alpha-2 string,
+    not a numeric platform code), so this always returns [] for EU regions.
+    Kept for API compatibility with the 104 source.
+    """
+    return []
 
 
 def linkedin_location(keys: list[str]) -> str:
-    """選定地區 key → LinkedIn location 字串；空選或未知 key → 空字串（不限地區）。"""
+    """Selected region key → LinkedIn location string; empty selection → '' (global)."""
     if not keys:
         return ""
     r = _BY_KEY.get(keys[0])
@@ -60,10 +201,12 @@ def linkedin_location(keys: list[str]) -> str:
 
 
 def match_location(location: str | None, keys: list[str]) -> bool:
-    """結果端：job location 是否落在選定縣市（任一別名子字串命中）。
+    """Result-side filter: does job.location fall within any selected region?
 
-    keys 為空 → 不限，一律 True。location 空/未知 → 視為命中（不因缺地點而誤殺；
-    104 一定有地點且已於來源端用 area 篩過，這裡只是其餘來源的保險）。
+    Empty keys → no filter, always True.
+    Empty/unknown location → treated as a match (don't drop jobs missing location data).
+    LinkedIn results are already location-filtered at the API level; this is a safety
+    net for other sources that don't support server-side location filtering.
     """
     if not keys:
         return True
@@ -72,6 +215,6 @@ def match_location(location: str | None, keys: list[str]) -> bool:
         return True
     for k in keys:
         r = _BY_KEY.get(k)
-        if r and any(a.lower() in loc for a in r["aliases"]):
+        if r and any(a in loc for a in r["aliases"]):
             return True
     return False

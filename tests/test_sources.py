@@ -286,17 +286,31 @@ def test_linkedin_search_url():
 
 def test_regions_parse_and_codes():
     from app.sources import regions
-    keys = regions.parse_keys("台北市, 高雄市,不存在的縣,台北市")  # 去空白、丟未知、去重
-    assert keys == ["台北市", "高雄市"]
-    assert regions.area_codes(keys) == ["6001001000", "6001016000"]
+    keys = regions.parse_keys("Germany, Netherlands,不存在的國,Germany")  # trim, drop unknown, dedup
+    assert keys == ["Germany", "Netherlands"]
+    assert regions.area_codes(keys) == []   # EU entries have no job-board area code
     assert regions.area_codes([]) == []
 
 
 def test_regions_match_location():
     from app.sources import regions
-    keys = ["台北市"]
-    assert regions.match_location("台北市信義區", keys) is True
-    assert regions.match_location("Taipei, Taiwan", keys) is True   # 英文別名
-    assert regions.match_location("台中市西屯區", keys) is False     # 外地濾掉
-    assert regions.match_location(None, keys) is True               # 缺地點寬鬆保留
-    assert regions.match_location("台中市", []) is True             # 不限地區一律 True
+    # Country-level selection matches city-level job locations
+    keys = ["Germany"]
+    assert regions.match_location("Berlin, Germany", keys) is True
+    assert regions.match_location("München, Deutschland", keys) is True   # local name alias
+    assert regions.match_location("Amsterdam, Netherlands", keys) is False  # different country
+    assert regions.match_location(None, keys) is True                       # missing location kept
+    assert regions.match_location("Paris", []) is True                      # no filter → all pass
+
+    # European Union selection passes any EU city
+    eu_keys = ["European Union"]
+    assert regions.match_location("Berlin, Germany", eu_keys) is True
+    assert regions.match_location("Amsterdam, Netherlands", eu_keys) is True
+
+
+def test_regions_linkedin_location():
+    from app.sources import regions
+    assert regions.linkedin_location([]) == ""
+    assert regions.linkedin_location(["Germany"]) == "Germany"
+    assert regions.linkedin_location(["European Union"]) == "European Union"
+    assert regions.linkedin_location(["Germany", "France"]) == "Germany"  # first key wins
