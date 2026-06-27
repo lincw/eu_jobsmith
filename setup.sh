@@ -4,7 +4,8 @@ set -e
 cd "$(dirname "$0")"
 
 echo "[1/4] Creating Python virtualenv (.venv)..."
-python -m venv .venv
+PY_BIN=$(command -v python3 || command -v python)
+"$PY_BIN" -m venv .venv
 
 # venv 的 python 路徑跨平台不同（Windows: Scripts；其餘: bin）。
 if [ -f .venv/bin/python ]; then PY=.venv/bin/python; else PY=.venv/Scripts/python.exe; fi
