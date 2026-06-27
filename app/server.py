@@ -416,7 +416,7 @@ def jobs_auto(
     pages = max(1, min(5, pages))
     region_keys = regions.parse_keys(region)
     area = regions.area_codes(region_keys)
-    li_location = regions.linkedin_location(region_keys)
+    li_location = regions.linkedin_location(region_keys) or "European Union"
     text, text_error = _resume_text_from_request(file, resume_text)
     posted_profile, profile_error = (None, None) if text.strip() else _profile_from_json(profile_json)
     company_list = _parse_companies(companies)

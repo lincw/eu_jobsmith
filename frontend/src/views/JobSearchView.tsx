@@ -395,7 +395,7 @@ export function JobSearchView(
             <button type="button" onClick={() => setRegions([])} disabled={busy} aria-pressed={regions.length === 0}
               className={`px-2.5 py-1 rounded-lg border text-xs transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 disabled:opacity-50 ${
                 regions.length === 0 ? "bg-brand-600 text-white border-brand-600" : "bg-white border-slate-300 text-slate-600 hover:bg-slate-50"
-              }`}>Any location</button>
+              }`}>All EU (default)</button>
             {EU_REGIONS.map((c) => {
               const on = regions.includes(c)
               return (
@@ -406,7 +406,7 @@ export function JobSearchView(
               )
             })}
           </div>
-          <p className="text-xs text-slate-400 mt-1">Selecting a country filters LinkedIn results by location. "European Union" searches across all EU member states.</p>
+          <p className="text-xs text-slate-400 mt-1">Defaults to "European Union" when nothing is selected — LinkedIn's guest API otherwise returns results based on server IP (Taiwan). Pick a specific country to narrow further.</p>
         </div>
 
         <div className="flex flex-wrap gap-2 mt-4 items-center">
