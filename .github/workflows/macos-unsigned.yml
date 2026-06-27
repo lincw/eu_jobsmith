@@ -1,4 +1,4 @@
-name: Build unsigned macOS app
+name: Build unsigned macOS DMG
 
 on:
   workflow_dispatch:
@@ -27,12 +27,12 @@ jobs:
         include:
           - arch: arm64
             runner: macos-15
-            asset: Jobsmith-macOS-arm64-unsigned.zip
-            artifact: jobsmith-macos-arm64-unsigned
+            asset: Jobsmith-macOS-arm64-unsigned.dmg
+            artifact: jobsmith-macos-arm64-unsigned-dmg
           - arch: x64
             runner: macos-15-intel
-            asset: Jobsmith-macOS-x64-unsigned.zip
-            artifact: jobsmith-macos-x64-unsigned
+            asset: Jobsmith-macOS-x64-unsigned.dmg
+            artifact: jobsmith-macos-x64-unsigned-dmg
 
     steps:
       - name: Check out repository
@@ -91,18 +91,23 @@ jobs:
           test -f dist/Jobsmith.app/Contents/Info.plist
           plutil -p dist/Jobsmith.app/Contents/Info.plist
 
-      - name: Zip app bundle
+      - name: Create unsigned DMG
         run: |
-          ditto -c -k --sequesterRsrc --keepParent dist/Jobsmith.app "dist/${{ matrix.asset }}"
-          shasum -a 256 "dist/${{ matrix.asset }}" > "dist/${{ matrix.asset }}.sha256"
+          mkdir -p dist/dmg-root
+          cp -R dist/Jobsmith.app dist/dmg-root/
+          ln -s /Applications dist/dmg-root/Applications
+          hdiutil create \
+            -volname "Jobsmith" \
+            -srcfolder dist/dmg-root \
+            -ov \
+            -format UDZO \
+            "dist/${{ matrix.asset }}"
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
-          path: |
-            dist/${{ matrix.asset }}
-            dist/${{ matrix.asset }}.sha256
+          path: dist/${{ matrix.asset }}
           retention-days: 14
 
       - name: Upload to release
@@ -112,5 +117,4 @@ jobs:
         run: |
           gh release upload "${{ inputs.release_tag }}" \
             "dist/${{ matrix.asset }}" \
-            "dist/${{ matrix.asset }}.sha256" \
             --clobber

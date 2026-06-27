@@ -49,14 +49,14 @@ Runs through your own **Claude Code / Codex CLI** subscription (no separate API 
 
 ### Unsigned macOS build
 
-Jobsmith now has an **unsigned** macOS `.app.zip` build workflow. It is not signed with an Apple Developer ID and is not notarized, so first launch may trigger Gatekeeper. Use right-click → **Open**, or allow the app in System Settings.
+Jobsmith now has an **unsigned** macOS `.dmg` build workflow. It is not signed with an Apple Developer ID and is not notarized, so first launch may trigger Gatekeeper. Use right-click → **Open**, or allow the app in System Settings.
 
-Maintainers can run **Actions → Build unsigned macOS app** manually. It produces:
+Maintainers can run **Actions → Build unsigned macOS DMG** manually. It produces:
 
-- `Jobsmith-macOS-arm64-unsigned.zip` for Apple Silicon (M1/M2/M3/M4)
-- `Jobsmith-macOS-x64-unsigned.zip` for Intel Macs
+- `Jobsmith-macOS-arm64-unsigned.dmg` for Apple Silicon (M1/M2/M3/M4)
+- `Jobsmith-macOS-x64-unsigned.dmg` for Intel Macs
 
-The workflow also has a `publish_release=true` option that replaces those zip files and sha256 files on a chosen release tag. The macOS app stores data and `.env` in `~/Library/Application Support/Jobsmith`.
+The workflow also has a `publish_release=true` option that replaces those dmg files on a chosen release tag. The macOS app stores data and `.env` in `~/Library/Application Support/Jobsmith`.
 
 ## Quick Start (from source)
 
@@ -176,7 +176,7 @@ The `summarize()` step is a pure function with its own unit tests, so the aggreg
 | Backend  | Python, FastAPI, LangGraph, LangChain, Pydantic v2, SQLite, BeautifulSoup  |
 | Frontend | React 19, TypeScript, Vite, Tailwind CSS, lucide-react                     |
 | LLM      | Claude Code CLI / Codex CLI (local) · any OpenAI-compatible endpoint (BYOK) |
-| Desktop  | pywebview (native window) · PyInstaller (single-file `.exe` / unsigned `.app`) |
+| Desktop  | pywebview (native window) · PyInstaller (single-file `.exe` / unsigned `.app`, distributed as `.dmg` on macOS) |
 
 ## Project Structure
 
@@ -207,7 +207,7 @@ cd frontend && npm run build   # type-check + production build
 ## Roadmap
 
 - [x] Single-file Windows desktop app (PyInstaller)
-- [x] unsigned macOS `.app` GitHub Actions build
+- [x] unsigned macOS `.dmg` GitHub Actions build
 - [x] BYOK — any OpenAI-compatible backend
 - [x] Background, refresh-proof package generation with parallel runs
 - [ ] macOS signing and notarization

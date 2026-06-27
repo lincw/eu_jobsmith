@@ -24,14 +24,13 @@ Use this checklist before publishing a GitHub release or sharing desktop builds 
 - [ ] Use Settings to clear personal data, then confirm history/searches are removed.
 - [ ] Open the error-log folder from Settings.
 
-## Unsigned macOS App
+## Unsigned macOS DMG
 
-- [ ] Run **Actions -> Build unsigned macOS app**.
+- [ ] Run **Actions -> Build unsigned macOS DMG**.
 - [ ] Confirm both artifacts were produced:
-  - `Jobsmith-macOS-arm64-unsigned.zip`
-  - `Jobsmith-macOS-x64-unsigned.zip`
-- [ ] Confirm SHA-256 files were produced for both zip files.
-- [ ] On a real Mac, unzip the artifact and launch with right-click -> Open.
+  - `Jobsmith-macOS-arm64-unsigned.dmg`
+  - `Jobsmith-macOS-x64-unsigned.dmg`
+- [ ] On a real Mac, open the DMG, drag `Jobsmith.app` to Applications, then launch with right-click -> Open.
 - [ ] Confirm first launch opens the native window and local data is created under `~/Library/Application Support/Jobsmith`.
 - [ ] State clearly that the macOS build is unsigned and not notarized.
 
@@ -40,7 +39,7 @@ Use this checklist before publishing a GitHub release or sharing desktop builds 
 - [ ] Remove local secrets from `.env`, logs, screenshots, and release notes.
 - [ ] Do not ship local `data/`, `.pytest_cache/`, `.ruff_cache/`, or `frontend/node_modules/`.
 - [ ] Include `LICENSE`, README, and privacy documentation in the release page.
-- [ ] Publish SHA-256 checksums for release assets.
+- [ ] Optional: publish SHA-256 checksums if the release page should support manual integrity verification.
 - [ ] State clearly whether the build is signed. Do not imply code signing if it is unsigned.
 
 ## GitHub Release
