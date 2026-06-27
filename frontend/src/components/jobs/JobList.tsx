@@ -5,27 +5,30 @@ import { Card } from "../../ui/Card"
 import { Button } from "../../ui/Button"
 import { Badge } from "../../ui/Badge"
 import { Sparkles, ExternalLink, ChevronLeft, ChevronRight } from "../../ui/icons"
+import { useTranslation } from "react-i18next"
 
 const PAGE_SIZE = 8
 
 // 適配以高/中/低色帶呈現（內部仍用 fit_score 排序/篩選）；避免與投遞包的「匹配評分」數字打架。
-function fitBand(s: number) {
-  return s >= 80 ? { label: "高", cls: "from-emerald-500 to-emerald-600" }
-    : s >= 60 ? { label: "中", cls: "from-amber-500 to-amber-600" }
-      : { label: "低", cls: "from-slate-400 to-slate-500" }
+function fitBand(s: number, t: any) {
+  return s >= 80 ? { label: t("joblist_fit_high"), cls: "from-emerald-500 to-emerald-600" }
+    : s >= 60 ? { label: t("joblist_fit_medium"), cls: "from-amber-500 to-amber-600" }
+      : { label: t("joblist_fit_low"), cls: "from-slate-400 to-slate-500" }
 }
 
 function FitBadge({ score }: { score: number }) {
-  const b = fitBand(score)
+  const { t } = useTranslation()
+  const b = fitBand(score, t)
   return (
     <div className={`shrink-0 w-14 h-14 rounded-xl bg-gradient-to-br ${b.cls} text-white grid place-items-center text-center`}>
       <div className="text-xl font-bold leading-none">{b.label}</div>
-      <div className="text-[9px] opacity-85 mt-0.5">適配</div>
+      <div className="text-[9px] opacity-85 mt-0.5">{t("joblist_fit_label")}</div>
     </div>
   )
 }
 
 function JobCard({ m, onPick, pending }: { m: JobMatch; onPick: (m: JobMatch) => void; pending?: boolean }) {
+  const { t } = useTranslation()
   return (
     <Card interactive className="p-4 flex flex-col sm:flex-row gap-4 animate-fade-in-up">
       <FitBadge score={m.fit_score} />
@@ -48,10 +51,10 @@ function JobCard({ m, onPick, pending }: { m: JobMatch; onPick: (m: JobMatch) =>
         )}
       </div>
       <div className="shrink-0 flex flex-row sm:flex-col gap-2">
-        <Button size="sm" icon={Sparkles} loading={pending} onClick={() => onPick(m)} className="whitespace-nowrap">產生投遞包</Button>
+        <Button size="sm" icon={Sparkles} loading={pending} onClick={() => onPick(m)} className="whitespace-nowrap">{t("joblist_generate_btn")}</Button>
         <a href={m.job.url} target="_blank" rel="noreferrer"
           className="inline-flex items-center justify-center gap-1 px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-sm hover:bg-slate-200 transition whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-300">
-          <ExternalLink className="w-3.5 h-3.5" />看原職缺
+          <ExternalLink className="w-3.5 h-3.5" />{t("joblist_view_original")}
         </a>
       </div>
     </Card>
@@ -61,6 +64,7 @@ function JobCard({ m, onPick, pending }: { m: JobMatch; onPick: (m: JobMatch) =>
 // 可分頁的職缺清單；onPick 可為 async（抓完整 JD 時該卡按鈕顯示載入中）。
 export function JobList({ matches, onPick }:
   { matches: JobMatch[]; onPick: (m: JobMatch) => void | Promise<void> }) {
+  const { t } = useTranslation()
   const [page, setPage] = useState(1)
   const [pendingUrl, setPendingUrl] = useState("")
   // 新一輪結果（matches 參考改變）→ 在 render 期回到第 1 頁（React 官方「prop 改變時
@@ -87,9 +91,9 @@ export function JobList({ matches, onPick }:
         ))}
       </div>
       {matches.length > PAGE_SIZE && (
-        <nav aria-label="職缺分頁" className="flex items-center justify-center gap-1.5 mt-5">
+        <nav aria-label="Pagination" className="flex items-center justify-center gap-1.5 mt-5">
           <Button variant="secondary" size="sm" icon={ChevronLeft}
-            disabled={cur <= 1} onClick={() => setPage(Math.max(1, cur - 1))}>上一頁</Button>
+            disabled={cur <= 1} onClick={() => setPage(Math.max(1, cur - 1))}>{t("joblist_prev_page")}</Button>
           {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
             <button key={n} onClick={() => setPage(n)} aria-current={n === cur ? "page" : undefined}
               className={`w-8 h-8 rounded-lg text-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 ${
@@ -97,7 +101,7 @@ export function JobList({ matches, onPick }:
               }`}>{n}</button>
           ))}
           <Button variant="secondary" size="sm" onClick={() => setPage(Math.min(totalPages, cur + 1))}
-            disabled={cur >= totalPages}>下一頁<ChevronRight className="w-4 h-4" /></Button>
+            disabled={cur >= totalPages}>{t("joblist_next_page")}<ChevronRight className="w-4 h-4" /></Button>
         </nav>
       )}
     </>

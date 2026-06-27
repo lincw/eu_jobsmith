@@ -151,7 +151,7 @@ def fallback_rank_jobs(profile: Profile, jobs: list[JobPosting], top_k: int | No
     return _fallback_rank_jobs(profile, jobs, top_k)
 
 
-def rank_jobs(profile: Profile, jobs: list[JobPosting], top_k: int | None = None) -> list[JobMatch]:
+def rank_jobs(profile: Profile, jobs: list[JobPosting], top_k: int | None = None, lang: str = "zh") -> list[JobMatch]:
     """以一次 LLM 呼叫對職缺評分排序（standard 分層）。
 
     top_k=None（預設）回傳全部排序結果（不截斷，由前端分頁）；為控 prompt，最多送
@@ -167,8 +167,12 @@ def rank_jobs(profile: Profile, jobs: list[JobPosting], top_k: int | None = None
     )
     llm = get_llm("standard", max_tokens=4000, timeout=90).with_structured_output(_RankResult)
     human = f"【求職者】\n{_profile_brief(profile)}\n\n【職缺清單】\n{listing}"
+    sys_prompt = RANK_SYSTEM
+    if lang == "en":
+        sys_prompt = sys_prompt.replace("全程繁體中文。", "Respond entirely in English.")
+        
     try:
-        out = llm.invoke([("system", RANK_SYSTEM), ("human", human)])
+        out = llm.invoke([("system", sys_prompt), ("human", human)])
     except Exception:
         return _fallback_rank_jobs(profile, jobs + overflow, top_k)
     if not out.rankings:

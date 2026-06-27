@@ -21,23 +21,25 @@ import { Sidebar } from "./ui/Sidebar"
 import type { NavItem } from "./ui/Sidebar"
 import { Button } from "./ui/Button"
 import { Compass, FileChartColumn, Workflow, MessagesSquare, Archive, Settings2, Search, ChevronUp, ChevronDown, ClipboardList } from "./ui/icons"
+import { useTranslation } from "react-i18next"
 
 type Tab = "search" | "searches" | "resume" | "resumeChecks" | "pipeline" | "interview" | "history" | "settings"
 
-const NAV: NavItem<Tab>[] = [
-  { id: "search", label: "自動找職缺", icon: Compass },
-  { id: "searches", label: "搜尋紀錄", icon: Search },
-  { id: "history", label: "我的投遞包", icon: Archive },
-  { id: "pipeline", label: "投遞包工作台", icon: Workflow },
-  { id: "interview", label: "面試模擬", icon: MessagesSquare },
-  { id: "resume", label: "履歷健檢", icon: FileChartColumn },
-  { id: "resumeChecks", label: "健檢紀錄", icon: ClipboardList },
+const NAV_KEYS: { id: Tab, labelKey: string, icon: any }[] = [
+  { id: "search", labelKey: "nav_search", icon: Compass },
+  { id: "searches", labelKey: "nav_searches", icon: Search },
+  { id: "history", labelKey: "nav_history", icon: Archive },
+  { id: "pipeline", labelKey: "nav_pipeline", icon: Workflow },
+  { id: "interview", labelKey: "nav_interview", icon: MessagesSquare },
+  { id: "resume", labelKey: "nav_resume", icon: FileChartColumn },
+  { id: "resumeChecks", labelKey: "nav_resumeChecks", icon: ClipboardList },
 ]
-const FOOTER: NavItem<Tab>[] = [{ id: "settings", label: "個人化", icon: Settings2 }]
+const FOOTER_KEYS: { id: Tab, labelKey: string, icon: any }[] = [{ id: "settings", labelKey: "nav_settings", icon: Settings2 }]
 const BACKEND_CONFIRMED_KEY = "copilot.backend.confirmed"
 const GUIDE_DISMISSED_KEY = "copilot.firstRunGuide.dismissed"
 
 export default function App() {
+  const { t, i18n } = useTranslation()
   const [tab, setTab] = useState<Tab>("search")
   const [backendConfirmed, setBackendConfirmed] = useState(
     () => localStorage.getItem(BACKEND_CONFIRMED_KEY) === "1")
@@ -69,7 +71,7 @@ export default function App() {
           setProfiles((ps) => upsertCandidateProfile(ps, makeCandidateProfile(profile, {
             id: "memory-profile",
             label: profileDisplayName(profile),
-            resumeLabel: "已儲存履歷",
+            resumeLabel: t("app.saved_resume", "已儲存履歷"),
             saved: true,
           })))
         }
@@ -85,7 +87,7 @@ export default function App() {
   function activateSessionProfile(profile: UserProfile, meta?: { label?: string; resumeLabel?: string }) {
     const candidate = makeCandidateProfile(profile, {
       label: meta?.label || profileDisplayName(profile),
-      resumeLabel: meta?.resumeLabel || "本次上傳履歷",
+      resumeLabel: meta?.resumeLabel || t("app.uploaded_resume", "本次上傳履歷"),
       saved: false,
     })
     setActiveProfile(candidate)
@@ -139,7 +141,7 @@ export default function App() {
 
   function pickJob(jd: string, picked?: UserProfile | null) {
     const nextProfile = picked ?? activeProfile?.profile ?? null
-    if (picked) activateSessionProfile(picked, { resumeLabel: "搜尋紀錄履歷" })
+    if (picked) activateSessionProfile(picked, { resumeLabel: t("app.search_resume", "搜尋紀錄履歷") })
     setSeed({ jd, profile: nextProfile, nonce: Date.now() })
     setTab("pipeline")
   }
@@ -147,7 +149,7 @@ export default function App() {
   // 從「我的投遞包」用該份 JD + 履歷直接開面試模擬。
   function startInterview(jd: string, picked?: UserProfile | null) {
     const nextProfile = picked ?? activeProfile?.profile ?? null
-    if (picked) activateSessionProfile(picked, { resumeLabel: "投遞包履歷" })
+    if (picked) activateSessionProfile(picked, { resumeLabel: t("app.pkg_resume", "投遞包履歷") })
     setInterviewSeed({ jd, profile: nextProfile, nonce: Date.now() })
     setTab("interview")
   }
@@ -192,6 +194,16 @@ export default function App() {
 
   const showFirstRunGuide = !showOnboard && !guideDismissed
 
+  const navItems: NavItem<Tab>[] = NAV_KEYS.map(n => ({ ...n, label: t(n.labelKey) }))
+  const footerItems: NavItem<Tab>[] = FOOTER_KEYS.map(n => ({ ...n, label: t(n.labelKey) }))
+
+  const toggleLanguage = () => {
+    const current = i18n.language || 'zh'
+    const nextLang = current.startsWith('zh') ? 'en' : 'zh'
+    i18n.changeLanguage(nextLang)
+    localStorage.setItem('i18nextLng', nextLang)
+  }
+
   return (
     <div className="min-h-screen flex">
       {showOnboard && <Onboarding onDone={finishOnboard} onSkip={skipOnboard} />}
@@ -203,7 +215,7 @@ export default function App() {
           onDone={dismissGuide}
         />
       )}
-      <Sidebar items={NAV} active={tab} onSelect={setTab} footer={FOOTER} />
+      <Sidebar items={navItems} active={tab} onSelect={setTab} footer={footerItems} />
       <div className="flex-1 min-w-0">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
           <UpdateBanner />
@@ -217,6 +229,9 @@ export default function App() {
                   {searchFormOpen ? "收合搜尋條件" : "修改搜尋條件"}
                 </Button>
               )}
+              <Button variant="secondary" size="sm" onClick={toggleLanguage}>
+                {(i18n.language || 'zh').startsWith('zh') ? 'EN' : '中'}
+              </Button>
               <GithubStar />
               <BackendSelector refreshKey={backendRefreshKey} />
             </header>

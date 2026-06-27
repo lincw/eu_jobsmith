@@ -8,6 +8,43 @@ from app import settings
 from app.llm_errors import ensure_structured_result, normalize_structured_exception
 from app.settings import get_model
 
+import contextvars
+current_lang = contextvars.ContextVar('current_lang', default='zh')
+
+class LangWrapper:
+    def __init__(self, inner):
+        self._inner = inner
+        
+    def with_structured_output(self, schema):
+        return LangWrapper(self._inner.with_structured_output(schema))
+        
+    def invoke(self, messages, *args, **kwargs):
+        lang = current_lang.get()
+        prompt_addition = ""
+        if lang == 'en':
+            prompt_addition = "\\n\\nCRITICAL: The user has set their language preference to English. YOU MUST RESPOND ENTIRELY IN ENGLISH."
+        else:
+            prompt_addition = "\\n\\nCRITICAL: The user has set their language preference to Traditional Chinese (zh-TW). YOU MUST RESPOND ENTIRELY IN TRADITIONAL CHINESE (Taiwan Style), including all special terms, labels, explanations, and outputs. NO SIMPLIFIED CHINESE."
+
+        new_msgs = list(messages)
+        for i, m in enumerate(new_msgs):
+            if isinstance(m, tuple) and m[0] == 'system':
+                new_msgs[i] = ('system', m[1] + prompt_addition)
+                break
+            elif hasattr(m, 'type') and m.type == 'system':
+                import copy
+                new_m = copy.copy(m)
+                new_m.content += prompt_addition
+                new_msgs[i] = new_m
+                break
+        messages = new_msgs
+        return self._inner.invoke(messages, *args, **kwargs)
+        
+    def __getattr__(self, name):
+        return getattr(self._inner, name)
+
+
+
 
 class _FriendlyStructured:
     def __init__(self, inner, schema, backend_label: str):
@@ -78,19 +115,26 @@ def get_llm(
 
         choice = settings.cli_model("claude_cli")
         model = CLAUDE_TIER_MODELS[tier] if choice == "auto" else choice
-        return ClaudeCLIChat(
+        return LangWrapper(ClaudeCLIChat(
             model,
             max_tokens=max_tokens,
             timeout=timeout or 300,
             structured_retries=structured_retries or 3,
-        )
+        ))
     if backend == "codex_cli":
         from app.llm_cli import CodexCLIChat
         choice = settings.cli_model("codex_cli")
-        return CodexCLIChat(tier, max_tokens=max_tokens,
+        return LangWrapper(CodexCLIChat(tier, max_tokens=max_tokens,
                             model=None if choice == "auto" else choice,
                             timeout=timeout or 300,
-                            structured_retries=structured_retries or 3)
+                            structured_retries=structured_retries or 3))
+    if backend == "agy_cli":
+        from app.llm_cli import AgyCLIChat
+        choice = settings.cli_model("agy_cli")
+        return LangWrapper(AgyCLIChat(model=None if choice == "auto" else choice,
+                          max_tokens=max_tokens,
+                          timeout=timeout or 300,
+                          structured_retries=structured_retries or 3))
     if backend == "openai":
         # BYOK：OpenAI 相容端點（OpenAI / DeepSeek / Gemini / Ollama / vLLM…）。
         from langchain_openai import ChatOpenAI
@@ -102,7 +146,7 @@ def get_llm(
             kwargs["base_url"] = settings.byok_base_url()
         if settings.byok_api_key():
             kwargs["api_key"] = settings.byok_api_key()
-        return _with_friendly_structured_errors(ChatOpenAI(**kwargs), "API key 後端")
+        return LangWrapper(_with_friendly_structured_errors(ChatOpenAI(**kwargs), "API key 後端"))
     if backend == "anthropic":
         from langchain_anthropic import ChatAnthropic
         kwargs = dict(
@@ -113,7 +157,7 @@ def get_llm(
         )
         if timeout is not None:
             kwargs["timeout"] = timeout
-        return _with_friendly_structured_errors(ChatAnthropic(**kwargs), "Anthropic API")
+        return LangWrapper(_with_friendly_structured_errors(ChatAnthropic(**kwargs), "Anthropic API"))
     raise ValueError(f"unknown LLM_BACKEND: {backend!r}")
 
 

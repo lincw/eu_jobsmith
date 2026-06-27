@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react"
+import { useTranslation } from "react-i18next"
 import type { CandidateProfile, PipelineState, Seed, UserProfile, TelemetryEntry, Preferences } from "../types"
 import { AgentTrace } from "../components/pipeline/AgentTrace"
 import { CandidateProfileManager } from "../components/CandidateProfileManager"
@@ -43,6 +44,7 @@ export function PipelineView(
     onClearActiveProfile: () => void
   },
 ) {
+  const { t } = useTranslation()
   const [jd, setJd] = useState("")
   const [manualJd, setManualJd] = useState("")
   const [pendingJd, setPendingJd] = useState("")
@@ -78,11 +80,11 @@ export function PipelineView(
     } else if (ev.type === "telemetry") {
       setTelemetry((t) => [...t, ev as unknown as TelemetryEntry])
     } else if (ev.type === "done") {
-      setPhase("done"); setStatus("完成 ✅")
+      setPhase("done"); setStatus(t("pipeline.done", "完成 ✅"))
     } else if (ev.type === "error") {
-      setError(ev.message || "發生錯誤"); setPhase("done"); setStatus("")
+      setError(ev.message || t("common.error", "發生錯誤")); setPhase("done"); setStatus("")
     } else if (ev.type === "stopped") {
-      setPhase("done"); setStatus(ev.message || "已停止任務")
+      setPhase("done"); setStatus(ev.message || t("pipeline.task_stopped", "已停止任務"))
     }
   }
 
@@ -95,16 +97,16 @@ export function PipelineView(
     stopPoll()
     localStorage.removeItem(RUN_KEY)
     setPhase("done")
-    setStatus("已停止任務")
+    setStatus(t("pipeline.task_stopped", "已停止任務"))
     if (!threadId) return
     try {
       const r = await fetch(`/api/run/${threadId}/stop`, { method: "POST" })
       if (!r.ok) {
         const d = await r.json().catch(() => ({}))
-        setError(d.error || "停止任務失敗，請稍後再試。")
+        setError(d.error || t("pipeline.stop_failed", "停止任務失敗，請稍後再試。"))
       }
     } catch {
-      setError("停止任務失敗，請確認伺服器是否仍在執行。")
+      setError(t("pipeline.stop_failed_server", "停止任務失敗，請確認伺服器是否仍在執行。"))
     }
   }
 
@@ -112,7 +114,7 @@ export function PipelineView(
   function startPolling(threadId: string, packageId: number) {
     stopPoll()
     poll.current = { thread: threadId, since: 0, timer: null }
-    setPhase("running"); setStatus("產生中…")
+    setPhase("running"); setStatus(t("pipeline.generating", "產生中…"))
     let failures = 0
     const tick = async () => {
       try {
@@ -127,7 +129,7 @@ export function PipelineView(
         poll.current.timer = window.setTimeout(tick, 900)
       } catch {
         failures += 1
-        if (failures >= 2) setStatus("重新連線中...")
+        if (failures >= 2) setStatus(t("pipeline.reconnecting", "重新連線中..."))
         poll.current.timer = window.setTimeout(tick, 1500)
       }
     }
@@ -162,7 +164,7 @@ export function PipelineView(
   async function run(jdText: string, profile?: UserProfile | null) {
     if (!jdText.trim()) return
     const effectiveProfile = profile ?? null
-    resetView(); setJd(jdText); setPhase("running"); setStatus("啟動中…")
+    resetView(); setJd(jdText); setPhase("running"); setStatus(t("pipeline.starting", "啟動中…"))
     try {
       const r = await fetch("/api/run", {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -170,13 +172,13 @@ export function PipelineView(
       })
       if (!r.ok) {
         const d = await r.json().catch(() => ({}))
-        setError(d.error || "啟動失敗，請稍後再試。"); setPhase("idle"); return
+        setError(d.error || t("pipeline.start_failed", "啟動失敗，請稍後再試。")); setPhase("idle"); return
       }
       const d = await r.json()
       localStorage.setItem(RUN_KEY, JSON.stringify({ threadId: d.thread_id, packageId: d.package_id, jd: jdText }))
       startPolling(d.thread_id, d.package_id)
     } catch {
-      setError("連線發生問題，請確認伺服器是否啟動。"); setPhase("idle")
+      setError(t("common.connection_error", "連線發生問題，請確認伺服器是否啟動。")); setPhase("idle")
     }
   }
 
@@ -235,9 +237,9 @@ export function PipelineView(
     }
   }
   const PAGE_DEFS = [
-    { key: "match", label: "匹配評分" }, { key: "company", label: "公司情報" },
-    { key: "resume", label: "客製履歷" }, { key: "cover", label: "求職信" },
-    { key: "interview", label: "面試準備" }, { key: "critique", label: "品管" },
+    { key: "match", label: t("pipeline.tab_match", "匹配評分") }, { key: "company", label: t("pipeline.tab_company", "公司情報") },
+    { key: "resume", label: t("pipeline.tab_resume", "客製履歷") }, { key: "cover", label: t("pipeline.tab_cover", "求職信") },
+    { key: "interview", label: t("pipeline.tab_interview", "面試準備") }, { key: "critique", label: t("pipeline.tab_critique", "品管") },
   ]
   const exists: Record<string, boolean> = {
     match: !!state.match_report, company: !!state.company_brief, resume: !!state.tailored_resume,
@@ -246,14 +248,14 @@ export function PipelineView(
   const pages = PAGE_DEFS.filter((p) => exists[p.key])
   const curPage = Math.min(page, Math.max(0, pages.length - 1))
   const hasDocs = pages.length > 0
-  const jdTitle = jd.split("\n").map((s) => s.trim()).find(Boolean) || "此職缺"
-  const pendingTitle = pendingJd.split("\n").map((s) => s.trim()).find(Boolean) || "此職缺"
+  const jdTitle = jd.split("\n").map((s) => s.trim()).find(Boolean) || t("pipeline.this_job", "此職缺")
+  const pendingTitle = pendingJd.split("\n").map((s) => s.trim()).find(Boolean) || t("pipeline.this_job", "此職缺")
   const idleConfirm = phase === "idle" && !hasDocs && Boolean(pendingJd.trim())
   const idleEmpty = phase === "idle" && !hasDocs && !pendingJd.trim()
   const seedProfile = seed?.profile && !activeProfile
     ? makeCandidateProfile(seed.profile, {
         label: profileDisplayName(seed.profile),
-        resumeLabel: "本次帶入履歷",
+        resumeLabel: t("pipeline.current_resume", "本次帶入履歷"),
         saved: false,
       })
     : null
@@ -270,17 +272,17 @@ export function PipelineView(
       {onBack && (
         <button onClick={onBack}
           className="no-print text-sm text-brand-600 hover:text-brand-700 mb-3 inline-flex items-center gap-1">
-          <ArrowLeft className="w-4 h-4" />回職缺列表
+          <ArrowLeft className="w-4 h-4" />{t("pipeline.back_to_jobs", "回職缺列表")}
         </button>
       )}
 
       {idleConfirm ? (
         <Card className="p-5">
           <div className="mb-4">
-            <p className="text-xs text-slate-400 mb-1">產出前確認</p>
+            <p className="text-xs text-slate-400 mb-1">{t("pipeline.confirm_before_generate", "產出前確認")}</p>
             <h2 className="font-semibold text-lg text-slate-900 truncate" title={pendingTitle}>{pendingTitle}</h2>
             <p className="text-sm text-slate-500 mt-1">
-              產生前請確認要使用哪一位候選人的 Profile，避免把不同人的履歷套到同一份投遞包。
+              {t("pipeline.confirm_desc", "產生前請確認要使用哪一位候選人的 Profile，避免把不同人的履歷套到同一份投遞包。")}
             </p>
           </div>
           <CandidateProfileManager
@@ -296,28 +298,24 @@ export function PipelineView(
           />
           <div className="mt-5 flex flex-wrap gap-2">
             <Button icon={Sparkles} disabled={!confirmProfile} onClick={() => confirmRun(true)}>
-              使用此 Profile 生成
+              {t("pipeline.use_profile", "使用此 Profile 生成")}
             </Button>
             <Button variant="secondary" onClick={() => confirmRun(false)}>
-              不使用 Profile
+              {t("pipeline.no_profile", "不使用 Profile")}
             </Button>
-            <Button variant="ghost" onClick={() => setPendingJd("")}>取消</Button>
+            <Button variant="ghost" onClick={() => setPendingJd("")}>{t("common.cancel", "取消")}</Button>
           </div>
         </Card>
       ) : idleEmpty ? (
         // 空狀態：從「自動找職缺」按產生投遞包，或直接貼 JD 產生。
         <Card className="p-5">
-          <p className="text-sm text-slate-600 mb-3">
-            到「自動找職缺」對某個職缺按「產生投遞包」，這裡會即時長出成品。
-            產生在背景進行，<strong>離開或重新整理都不會中斷</strong>，完成後自動存進「我的投遞包」（待審）。
-            也可直接貼 JD 產生：
-          </p>
+          <p className="text-sm text-slate-600 mb-3" dangerouslySetInnerHTML={{ __html: t("pipeline.empty_desc", "到「自動找職缺」對某個職缺按「產生投遞包」，這裡會即時長出成品。產生在背景進行，<strong>離開或重新整理都不會中斷</strong>，完成後自動存進「我的投遞包」（待審）。也可直接貼 JD 產生：") }} />
           <textarea
             className="w-full border border-slate-300 rounded-lg p-3 text-sm h-32 focus:outline-none focus:ring-2 focus:ring-brand-200"
-            placeholder="貼上職缺 JD 文字…" value={manualJd} onChange={(e) => setManualJd(e.target.value)} />
+            placeholder={t("pipeline.paste_jd", "貼上職缺 JD 文字…")} value={manualJd} onChange={(e) => setManualJd(e.target.value)} />
           <div className="mt-3">
             <Button icon={Sparkles} disabled={!manualJd.trim()} onClick={() => setPendingJd(manualJd)}>
-              確認生成設定
+              {t("pipeline.confirm_settings", "確認生成設定")}
             </Button>
           </div>
           {error && <p className="text-sm text-rose-600 mt-2">{error}</p>}
@@ -334,17 +332,17 @@ export function PipelineView(
               <span className="font-medium text-slate-800 truncate" title={jdTitle}>{jdTitle}</span>
               {phase === "running" && (
                 <span className="text-sm text-brand-600 inline-flex items-center gap-1">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />產生中…
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />{t("pipeline.generating", "產生中…")}
                 </span>
               )}
               {phase === "running" && (
                 <Button variant="secondary" size="sm" icon={XCircle} onClick={() => void stopRun()}>
-                  停止任務
+                  {t("common.stop_task", "停止任務")}
                 </Button>
               )}
               {phase === "done" && !error && (
                 <span className="text-sm text-emerald-600 inline-flex items-center gap-1">
-                  <CheckCircle2 className="w-3.5 h-3.5" />已存入「我的投遞包」（待審）
+                  <CheckCircle2 className="w-3.5 h-3.5" />{t("pipeline.saved", "已存入「我的投遞包」（待審）")}
                 </span>
               )}
             </div>
@@ -358,7 +356,7 @@ export function PipelineView(
             {nodeErrors.length > 0 && (
               <div className="no-print bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm text-amber-800">
                 <p className="font-medium mb-1 flex items-center gap-1.5">
-                  <AlertTriangle className="w-4 h-4" />部分環節降級（已用替代內容續跑）
+                  <AlertTriangle className="w-4 h-4" />{t("pipeline.fallback_warning", "部分環節降級（已用替代內容續跑）")}
                 </p>
                 <ul className="list-disc pl-5 space-y-0.5">
                   {nodeErrors.map((e, i) => <li key={i}>{e.node}：{e.message}</li>)}
@@ -381,11 +379,11 @@ export function PipelineView(
                   </div>
                   <div className="ml-auto flex items-center gap-2 shrink-0">
                     <Button variant="secondary" size="sm" icon={ChevronLeft}
-                      disabled={curPage <= 0} onClick={() => setPage(curPage - 1)}>上一頁</Button>
+                      disabled={curPage <= 0} onClick={() => setPage(curPage - 1)}>{t("common.prev_page", "上一頁")}</Button>
                     <span className="text-sm text-slate-500">{curPage + 1} / {pages.length}</span>
                     <Button variant="secondary" size="sm"
                       disabled={curPage >= pages.length - 1} onClick={() => setPage(curPage + 1)}>
-                      下一頁<ChevronRight className="w-4 h-4" />
+                      {t("common.next_page", "下一頁")}<ChevronRight className="w-4 h-4" />
                     </Button>
                   </div>
                 </div>
@@ -396,8 +394,8 @@ export function PipelineView(
               </Card>
             ) : phase === "running" ? (
               <Card className="p-2">
-                <EmptyState icon={Network} title="正在產生投遞包…"
-                  desc="左側可看多 agent 的即時編排，成品會逐步出現。離開或重新整理都不會中斷。" />
+                <EmptyState icon={Network} title={t("pipeline.generating_title", "正在產生投遞包…")}
+                  desc={t("pipeline.generating_desc", "左側可看多 agent 的即時編排，成品會逐步出現。離開或重新整理都不會中斷。")} />
               </Card>
             ) : null}
           </main>

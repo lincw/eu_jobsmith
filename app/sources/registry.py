@@ -5,14 +5,13 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from urllib.parse import quote
 
 from app.models import SearchResult
-from app.sources import source_104, source_cake, source_linkedin, source_yourator
+from app.sources import source_indeed, source_linkedin, source_xing
 
 # 可關鍵字搜尋的來源（name -> search 函式）
 SEARCHABLE = {
-    source_104.NAME: source_104.search,
-    source_yourator.NAME: source_yourator.search,
     source_linkedin.NAME: source_linkedin.search,
-    source_cake.NAME: source_cake.search,
+    source_indeed.NAME: source_indeed.search,
+    source_xing.NAME: source_xing.search,
 }
 
 # 尚未穩定、暫不啟用的來源（UI 標「即將支援」，避免永遠失敗的來源傷可信度）。
@@ -36,7 +35,7 @@ def search_all(keywords: str, sources: list[str] | None = None, limit: int = 15,
     with ThreadPoolExecutor(max_workers=len(names)) as ex:
         futs: dict = {}
         for n in names:
-            if n == source_linkedin.NAME:
+            if n in (source_linkedin.NAME, source_indeed.NAME, source_xing.NAME):
                 futs[ex.submit(SEARCHABLE[n], keywords, limit, pages, area, location)] = n
             else:
                 futs[ex.submit(SEARCHABLE[n], keywords, limit, pages, area)] = n

@@ -21,6 +21,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from pydantic import BaseModel
 
 from app import __version__, settings, task_control
+from app.llm import current_lang
 from app.agents.company_jobs import find_company_jobs
 from app.agents.job_search import derive_queries, fallback_rank_jobs, rank_jobs
 from app.agents.resume_eval import evaluate_resume, fallback_resume_assessment, structure_profile
@@ -36,7 +37,21 @@ from app.store import memory as _memory
 from app.store import resume_checks as _resume_checks
 from app.store import searches as _searches
 
-app = FastAPI(title="Jobsmith")
+app = FastAPI()
+
+from fastapi import Request
+
+@app.middleware('http')
+async def set_lang_middleware(request: Request, call_next):
+    # Try to read lang from query or body if easily available, but simpler is to rely on headers
+    # The frontend react-i18next doesn't automatically send Accept-Language, but we can set it
+    # or we can read a custom header
+    lang_header = request.headers.get('x-lang', 'zh')
+    if lang_header:
+        current_lang.set(lang_header)
+    response = await call_next(request)
+    return response
+
 
 _appdb.init_db()  # 應用層 sqlite（歷史/記憶）
 _history.mark_stale_running_failed()  # 啟動時把上次殘留的「進行中」收尾為 failed
@@ -259,6 +274,7 @@ class RunBody(BaseModel):
     profile: dict | None = None
     # 個人化偏好（語氣/目標職稱/年資/想強調技能）；套進 profile 讓各生成 agent 採用。
     preferences: dict | None = None
+    lang: str = "zh"
 
 
 # 注意：以下兩個串流端點用一般 def（非 async def），讓 Starlette 在 threadpool 執行
@@ -268,7 +284,9 @@ def resume_evaluate(
     file: UploadFile | None = File(default=None),
     resume_text: str = Form(default=""),
     task_id: str = Form(default=""),
+    lang: str = Form(default="zh"),
 ):
+    current_lang.set(lang)
     resume_label = file.filename if file and file.filename else ("貼上文字" if resume_text.strip() else "")
     text, text_error = _resume_text_from_request(file, resume_text)
     token = _task_from_id(task_id)
@@ -359,6 +377,7 @@ def _rank_in_batches(
     batch: int = _RANK_BATCH,
     workers: int = 4,
     token: task_control.TaskToken | None = None,
+    lang: str = "zh",
 ):
     """把職缺切批、並行送 rank_jobs，哪批先完成就先 yield（供 SSE 邊排邊推）。
 
@@ -371,7 +390,7 @@ def _rank_in_batches(
         with task_control.task_context(token):
             if token is not None:
                 token.check()
-            return rank_jobs(profile, chunk, None)
+            return rank_jobs(profile, chunk, None, lang)
 
     with ThreadPoolExecutor(max_workers=min(workers, len(chunks))) as ex:
         futs = {ex.submit(run_rank, c): c for c in chunks}
@@ -406,6 +425,8 @@ def jobs_auto(
     pages: int = Form(default=2),
     region: str = Form(default=""),
     task_id: str = Form(default=""),
+    custom_keywords: str = Form(default=""),
+    lang: str = Form(default="zh"),
 ):
     """履歷 → 自動找職缺：解析履歷 → 推導關鍵字 → 搜尋多站 →（選填）併入指定公司的開缺 → 依履歷排序。
 
@@ -456,8 +477,11 @@ def jobs_auto(
             # 把使用者真實履歷（含 raw_text 原文）送給前端，供「產生投遞包」時整包帶入 pipeline，
             # 讓 match/resume/cover/interview agent 拿到逐字履歷（檔案上傳時前端沒有原文，必須由後端帶）。
             yield _sse({"type": "profile", "data": profile.model_dump()})
-            with task_control.task_context(token):
-                queries = derive_queries(profile)
+            if custom_keywords.strip():
+                queries = [k.strip() for k in custom_keywords.split(",") if k.strip()]
+            else:
+                with task_control.task_context(token):
+                    queries = derive_queries(profile)
             token.check()
             yield _sse({"type": "queries", "queries": queries})
 
@@ -468,9 +492,9 @@ def jobs_auto(
                 yield _sse({"type": "progress", "step": "search", "message": f"搜尋「{q}」中…"})
                 for res in search_all(q, limit=15, pages=pages, area=area, location=li_location):
                     token.check()
-                    # 104 已於來源端用 area 篩過；其餘來源在結果端依 location 過濾，地區一致生效。
+                    # 來源在結果端依 location 過濾，地區一致生效。
                     kept = [j for j in res.jobs
-                            if res.source == "104" or regions.match_location(j.location, region_keys)]
+                            if regions.match_location(j.location, region_keys)]
                     yield _sse({"type": "source", "source": res.source,
                                 "count": len(kept), "blocked": res.blocked})
                     for j in kept:
@@ -486,7 +510,7 @@ def jobs_auto(
                 used_fallback = True
                 yield _sse({"type": "all_blocked",
                             "message": "即時職缺來源暫時取得不到結果，以下改用範例職缺示意，"
-                                       "並請改用下方 LinkedIn / 104 直連搜尋。"})
+                                       "並請改用下方 LinkedIn 直連搜尋。"})
                 resume_jobs = _load_fallback_jobs()
 
             # ① AI 依履歷找到的職缺：分批『並行』排序、逐批串流給前端（邊收邊排序/篩選），
@@ -494,7 +518,7 @@ def jobs_auto(
             resume_jobs.sort(key=lambda j: j.url or (j.title + j.company))
             yield _sse({"type": "rank_start", "total": len(resume_jobs), "fallback": used_fallback})
             matches = []
-            for batch in _rank_in_batches(profile, resume_jobs, token=token):
+            for batch in _rank_in_batches(profile, resume_jobs, token=token, lang=lang):
                 token.check()
                 matches.extend(batch)
                 yield _sse({"type": "ranked_batch", "data": [m.model_dump() for m in batch]})
@@ -527,7 +551,7 @@ def jobs_auto(
                             "message": f"依履歷排序 {len(company_pool)} 筆指定公司職缺…"})
                 token.check()
                 with task_control.task_context(token):
-                    cmatches = rank_jobs(profile, company_pool, top_k=None)
+                    cmatches = rank_jobs(profile, company_pool, top_k=None, lang=lang)
                 token.check()
                 yield _sse({"type": "company_jobs",
                             "data": [m.model_dump() for m in cmatches]})
@@ -601,6 +625,8 @@ def _backend_available(name: str) -> bool:
         return bool(_find_cli("claude", "CLAUDE_CLI_PATH"))
     if name == "codex_cli":
         return bool(_find_cli("codex", "CODEX_CLI_PATH"))
+    if name == "agy_cli":
+        return bool(_find_cli("agy", "AGY_CLI_PATH"))
     if name == "openai":  # 有金鑰，或有 base_url（如 Ollama / LM Studio 本機免金鑰）即可
         return bool(settings.byok_api_key() or settings.byok_base_url())
     if name == "anthropic":
@@ -614,7 +640,8 @@ def _cli_version(name: str) -> str:
 
     from app.llm_cli import _find_cli
     spec = {"claude_cli": ("CLAUDE_CLI_PATH", "claude"),
-            "codex_cli": ("CODEX_CLI_PATH", "codex")}.get(name)
+            "codex_cli": ("CODEX_CLI_PATH", "codex"),
+            "agy_cli": ("AGY_CLI_PATH", "agy")}.get(name)
     if not spec:
         return ""
     exe = _find_cli(spec[1], spec[0])
@@ -719,6 +746,11 @@ def _probe_codex() -> str:
                       extra_args=["-c", 'model_reasoning_effort="low"'])
 
 
+def _probe_agy() -> str:
+    from app.llm_cli import _run_agy
+    return _run_agy(_PROBE_PROMPT, None, timeout=_PROBE_TIMEOUT)
+
+
 def _probe_openai() -> str:
     """用目前 BYOK 設定（base_url + key + model）跑一次極短呼叫。"""
     from langchain_openai import ChatOpenAI
@@ -737,6 +769,8 @@ def _probe_backend(name: str) -> str:
         return _probe_claude()
     if name == "codex_cli":
         return _probe_codex()
+    if name == "agy_cli":
+        return _probe_agy()
     if name == "openai":
         return _probe_openai()
     # anthropic
@@ -755,7 +789,7 @@ _backend_live_at: dict[str, float] = {}
 
 def _backend_signature(name: str) -> str:
     """後端 + 影響連線的設定（模型/端點）組成快取鍵；任一改變就重新探測。"""
-    if name in ("claude_cli", "codex_cli"):
+    if name in ("claude_cli", "codex_cli", "agy_cli"):
         return f"{name}:{settings.cli_model(name)}"
     if name == "openai":
         return f"openai:{settings.byok_base_url()}|{settings.byok_model()}"
@@ -781,6 +815,9 @@ def _probe_failure_message(name: str) -> str:
                 "或到右上角控制台按「測試」確認連線後，再開始搜尋。")
     if name == "codex_cli":
         return ("Codex CLI 接不通——多半是還沒登入。請先在終端機執行 `codex` 完成登入，"
+                "或到右上角控制台按「測試」確認連線後，再開始搜尋。")
+    if name == "agy_cli":
+        return ("Agy CLI 接不通——多半是還沒登入。請先在終端機執行 `agy` 完成登入，"
                 "或到右上角控制台按「測試」確認連線後，再開始搜尋。")
     return ("AI 後端接不通，請到右上角控制台確認 base_url / api_key / model 設定，"
             "並按「測試」連線成功後再搜尋。")
@@ -912,6 +949,7 @@ class InterviewSummaryBody(BaseModel):
 
 @app.post("/api/interview/start")
 def interview_start(body: InterviewStartBody):
+    current_lang.set(body.lang)
     from app.agents.interview_sim import generate_questions
     token = _task_from_id(body.task_id) if body.task_id else None
     try:
@@ -931,6 +969,7 @@ def interview_start(body: InterviewStartBody):
 
 @app.post("/api/interview/answer")
 def interview_answer(body: InterviewAnswerBody):
+    current_lang.set(body.lang)
     from app.agents.interview_sim import evaluate_answer
     token = _task_from_id(body.task_id) if body.task_id else None
     try:
@@ -985,6 +1024,7 @@ def pipeline_chat(body: PipelineChatBody):
 
 @app.post("/api/interview/summary")
 def interview_summary(body: InterviewSummaryBody):
+    current_lang.set(body.lang)
     from app.agents.interview_sim import summarize
     token = _task_from_id(body.task_id) if body.task_id else None
     try:
@@ -1037,6 +1077,7 @@ def _apply_preferences(profile: Profile, prefs: dict | None) -> Profile:
 
 @app.post("/api/run")
 def run(body: RunBody):
+    current_lang.set(body.lang)
     """產生投遞包（背景、射後不理）：立刻在『我的投遞包』建一筆進行中並回傳 thread_id/package_id；
     pipeline 在伺服器背景跑完（瀏覽器重新整理/返回/切分頁都不中斷），前端用 /api/run/events 輪詢進度。
     """

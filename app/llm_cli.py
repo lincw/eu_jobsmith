@@ -444,3 +444,68 @@ class CodexCLIChat:
     def invoke(self, messages):
         system, human = _messages_to_prompt(messages)
         return _run_codex(_join_prompt(system, human), timeout=self.timeout, extra_args=self._extra())
+
+# ---------------------------------------------------------------------------
+# Agy CLI (agy -p)
+# ---------------------------------------------------------------------------
+
+def _run_agy(prompt: str, model: str | None = None, timeout: int = _TIMEOUT) -> str:
+    """呼叫 `agy -p`，回傳模型文字。"""
+    exe = _find_cli("agy", "AGY_CLI_PATH")
+    if not exe:
+        raise RuntimeError("找不到 agy CLI，請確認已安裝並在 PATH。")
+    env = os.environ.copy()
+    args = [exe, "-p", prompt]
+    if model:
+        args.extend(["--model", model])
+    proc = _run_process(args, env=env, timeout=timeout)
+    if proc.returncode != 0:
+        raise RuntimeError(
+            f"agy CLI 失敗（rc={proc.returncode}）：{(proc.stderr or '')[:300]}"
+        )
+    return proc.stdout or ""
+
+
+class _AgyStructured:
+    def __init__(self, schema, model=None, timeout: int = _TIMEOUT, max_tries: int = _MAX_TRIES):
+        self._schema = schema
+        self._model = model
+        self._timeout = timeout
+        self._max_tries = max_tries
+
+    def invoke(self, messages):
+        return _structured_loop(
+            lambda prompt: _run_agy(prompt, self._model, timeout=self._timeout),
+            self._schema,
+            messages,
+            "Agy CLI",
+            max_tries=self._max_tries,
+        )
+
+
+class AgyCLIChat:
+    """相容 LangChain 介面的 Agy CLI 後端。"""
+
+    def __init__(
+        self,
+        model: str | None = None,
+        max_tokens: int = 2000,
+        timeout: int = _TIMEOUT,
+        structured_retries: int = _MAX_TRIES,
+    ):
+        self.model = model
+        self.max_tokens = max_tokens
+        self.timeout = timeout
+        self.structured_retries = structured_retries
+
+    def with_structured_output(self, schema):
+        return _AgyStructured(
+            schema,
+            self.model,
+            timeout=self.timeout,
+            max_tries=self.structured_retries,
+        )
+
+    def invoke(self, messages):
+        system, human = _messages_to_prompt(messages)
+        return _run_agy(_join_prompt(system, human), self.model, timeout=self.timeout)

@@ -104,6 +104,7 @@ export function useBackend(reloadKey = 0) {
 export const CLI_AGENTS: { id: string; name: string }[] = [
   { id: "claude_cli", name: "Claude Code" },
   { id: "codex_cli", name: "Codex CLI" },
+  { id: "agy_cli", name: "Agy CLI" },
 ]
 
 export function modelLabel(m: string | undefined): string {

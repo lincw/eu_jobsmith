@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react"
+import { useTranslation } from "react-i18next"
 import type { MouseEvent } from "react"
 import type { UserProfile, PipelineState } from "../types"
 import { Card } from "../ui/Card"
@@ -32,12 +33,12 @@ function hasArtifacts(pkg: PipelineState | null | undefined) {
   return Boolean(pkg?.tailored_resume || pkg?.cover_letter || pkg?.interview_kit)
 }
 
-function statusBadge(p: PkgSummary) {
-  if (p.status === "running") return <Badge tone="brand">進行中 · 點開看進度</Badge>
-  if (p.status === "failed") return <Badge tone="rose">產生失敗</Badge>
-  if (p.status === "stopped" || p.has_artifacts === 0) return <Badge tone="slate">未產出</Badge>
-  if (p.approved) return <Badge tone="emerald">已核可</Badge>
-  return <Badge tone="amber">待審</Badge>
+function statusBadge(p: PkgSummary, t: any) {
+  if (p.status === "running") return <Badge tone="brand">{t("history.status_running", "進行中 · 點開看進度")}</Badge>
+  if (p.status === "failed") return <Badge tone="rose">{t("history.status_failed", "產生失敗")}</Badge>
+  if (p.status === "stopped" || p.has_artifacts === 0) return <Badge tone="slate">{t("history.status_stopped", "未產出")}</Badge>
+  if (p.approved) return <Badge tone="emerald">{t("history.status_approved", "已核可")}</Badge>
+  return <Badge tone="amber">{t("history.status_pending", "待審")}</Badge>
 }
 
 export function HistoryView(
@@ -49,6 +50,7 @@ export function HistoryView(
     onWatch?: (threadId: string, packageId: number, title: string) => void
   },
 ) {
+  const { t } = useTranslation()
   const [list, setList] = useState<PkgSummary[]>([])
   const [detail, setDetail] = useState<PackageDetail | null>(null)
   const [busy, setBusy] = useState(false)
@@ -97,7 +99,7 @@ export function HistoryView(
   async function downloadDocx(pkg: PipelineState) {
     const r = pkg.tailored_resume, c = pkg.cover_letter, k = pkg.interview_kit
     const body = {
-      job_title: pkg.parsed_job?.title || "求職投遞包",
+      job_title: pkg.parsed_job?.title || t("history.pkg_title", "求職投遞包"),
       company: pkg.parsed_job?.company || pkg.company_brief?.company || "",
       resume: r ? { summary: r.summary, bullets: r.bullets, ats_keywords_hit: r.ats_keywords_hit } : undefined,
       cover_letter: c ? { subject: c.subject, body: c.body } : undefined,
@@ -109,7 +111,7 @@ export function HistoryView(
     if (!resp.ok) return
     const blob = await resp.blob()
     const a = document.createElement("a")
-    a.href = URL.createObjectURL(blob); a.download = "投遞包.docx"; a.click(); URL.revokeObjectURL(a.href)
+    a.href = URL.createObjectURL(blob); a.download = t("history.download_name", "投遞包") + ".docx"; a.click(); URL.revokeObjectURL(a.href)
   }
 
   // ---- 詳情檢視 ----
@@ -119,26 +121,26 @@ export function HistoryView(
     const canReview = detail.status === "done" && hasDocs
     const failed = detail.status === "failed"
     const stopped = detail.status === "stopped" || !hasDocs
-    const emptyTitle = failed ? "產生失敗" : "未產出可審核文件"
+    const emptyTitle = failed ? t("history.status_failed", "產生失敗") : t("history.no_artifacts", "未產出可審核文件")
     const emptyDesc = failed
-      ? (p.error?.message || "背景產生過程中斷，這筆紀錄沒有可顯示的投遞包內容。")
-      : "這筆流程已結束，但沒有產出客製履歷、求職信或面試準備；通常是適配度過低或流程在產出前停止。"
+      ? (p.error?.message || t("history.failed_desc", "背景產生過程中斷，這筆紀錄沒有可顯示的投遞包內容。"))
+      : t("history.no_artifacts_desc", "這筆流程已結束，但沒有產出客製履歷、求職信或面試準備；通常是適配度過低或流程在產出前停止。")
     return (
       <div>
         <button onClick={() => setDetail(null)}
           className="no-print text-sm text-brand-600 hover:text-brand-700 mb-3 inline-flex items-center gap-1">
-          <ArrowLeft className="w-4 h-4" />回列表
+          <ArrowLeft className="w-4 h-4" />{t("history.back_to_list", "回列表")}
         </button>
         <div className="no-print flex flex-wrap gap-2 mb-4">
           {canReview && detail.approved !== 1 && (
-            <Button variant="primary" icon={CircleCheck} onClick={() => approve(detail.id)}>核可</Button>
+            <Button variant="primary" icon={CircleCheck} onClick={() => approve(detail.id)}>{t("history.approve", "核可")}</Button>
           )}
           <Button variant="secondary" icon={Workflow}
-            onClick={() => onReopen(detail.jd_text || "", detail.profile ?? null)}>重新開啟到工作台</Button>
+            onClick={() => onReopen(detail.jd_text || "", detail.profile ?? null)}>{t("history.reopen_workbench", "重新開啟到工作台")}</Button>
           <Button variant="secondary" icon={MessagesSquare}
-            onClick={() => onInterview(detail.jd_text || "", detail.profile ?? null)}>用這份做面試模擬</Button>
-          {hasDocs && <Button variant="secondary" icon={FileDown} onClick={() => downloadDocx(p)}>下載 Word</Button>}
-          {hasDocs && <Button variant="secondary" icon={Printer} onClick={() => window.print()}>列印 / 匯出 PDF</Button>}
+            onClick={() => onInterview(detail.jd_text || "", detail.profile ?? null)}>{t("history.mock_interview", "用這份做面試模擬")}</Button>
+          {hasDocs && <Button variant="secondary" icon={FileDown} onClick={() => downloadDocx(p)}>{t("history.download_word", "下載 Word")}</Button>}
+          {hasDocs && <Button variant="secondary" icon={Printer} onClick={() => window.print()}>{t("history.print_pdf", "列印 / 匯出 PDF")}</Button>}
         </div>
         <div className="space-y-4">
           {stopped && (
@@ -161,14 +163,14 @@ export function HistoryView(
   if (!list.length) {
     return (
       <Card className="p-2">
-        <EmptyState icon={Archive} title="還沒有投遞包紀錄"
-          desc="到「投遞包工作台」跑完一份投遞包後，會自動存到這裡，可回查、重新開啟、下載。" />
+        <EmptyState icon={Archive} title={t("history.no_pkgs", "還沒有投遞包紀錄")}
+          desc={t("history.no_pkgs_desc", "到「投遞包工作台」跑完一份投遞包後，會自動存到這裡，可回查、重新開啟、下載。")} />
       </Card>
     )
   }
   return (
     <div className="space-y-3">
-      <h2 className="font-semibold">我的投遞包（{list.length}）</h2>
+      <h2 className="font-semibold">{t("history.my_pkgs", "我的投遞包")}（{list.length}）</h2>
       {list.map((p) => {
         const running = p.status === "running"
         const failed = p.status === "failed"
@@ -195,7 +197,7 @@ export function HistoryView(
               <p className="font-medium text-slate-900 truncate">{p.job_title}</p>
               <p className="text-sm text-slate-600 truncate flex items-center gap-2">
                 <span className="truncate">{p.company || "—"} · {fmtDate(p.created_at)}</span>
-                {statusBadge(p)}
+                {statusBadge(p, t)}
               </p>
             </div>
             {reviewable && (
@@ -213,7 +215,7 @@ export function HistoryView(
           </Card>
         )
       })}
-      {busy && <p className="text-sm text-slate-400">載入中…</p>}
+      {busy && <p className="text-sm text-slate-400">{t("common.loading", "載入中…")}</p>}
     </div>
   )
 }

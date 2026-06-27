@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react"
+import { useTranslation } from "react-i18next"
 import type { CandidateProfile, UserProfile, InterviewQuestion, AnswerFeedback, InterviewSummary, Seed } from "../types"
 import { profileDisplayName } from "../lib/profiles"
 import { newTaskId, stopTask } from "../lib/taskControl"
@@ -47,6 +48,7 @@ export function InterviewView(
   { active, activeProfile, seed }:
   { active?: boolean; activeProfile?: CandidateProfile | null; seed?: Seed | null },
 ) {
+  const { t } = useTranslation()
   const [sessions, setSessions] = useState<Session[]>([])
   const [currentKey, setCurrentKey] = useState<string | null>(null)
   const [packages, setPackages] = useState<PkgPick[]>([])
@@ -83,7 +85,7 @@ export function InterviewView(
     } finally {
       current.ctrl.abort()
       delete taskRefs.current[key]
-      patch(key, { loading: false, busy: false, error: "已停止任務" })
+      patch(key, { loading: false, busy: false, error: t("interview.task_stopped", "已停止任務") })
     }
   }
 
@@ -108,16 +110,16 @@ export function InterviewView(
         body: JSON.stringify({ jd_text: jd, profile, task_id: taskId }),
       })
       const d = await r.json()
-      if (!r.ok) { patch(key, { loading: false, error: d.error || "啟動失敗" }); return }
+      if (!r.ok) { patch(key, { loading: false, error: d.error || t("common.start_failed", "啟動失敗") }); return }
       const qs: InterviewQuestion[] = d.questions || []
-      if (!qs.length) { patch(key, { loading: false, error: "AI 暫時無法出題，請稍後再試或換一份 JD。" }); return }
+      if (!qs.length) { patch(key, { loading: false, error: t("interview.no_questions", "AI 暫時無法出題，請稍後再試或換一份 JD。") }); return }
       patch(key, { loading: false, questions: qs })
     } catch (e) {
       if ((e as Error)?.name === "AbortError") {
-        patch(key, { loading: false, error: "已停止任務" })
+        patch(key, { loading: false, error: t("interview.task_stopped", "已停止任務") })
         return
       }
-      patch(key, { loading: false, error: "連線發生問題，請確認伺服器是否啟動。" })
+      patch(key, { loading: false, error: t("common.connection_error", "連線發生問題，請確認伺服器是否啟動。") })
     } finally {
       finishTask(key, ctrl)
     }
@@ -141,10 +143,10 @@ export function InterviewView(
     setCurrentKey(key)
     try {
       const d = await (await fetch(`/api/history/${p.id}`)).json()
-      if (!d.jd_text) { patch(key, { loading: false, error: "這筆投遞包沒有可用的 JD。" }); return }
+      if (!d.jd_text) { patch(key, { loading: false, error: t("interview.no_jd_in_pkg", "這筆投遞包沒有可用的 JD。") }); return }
       await beginQuestions(key, d.jd_text, d.profile ?? activeProfile?.profile ?? null)
     } catch {
-      patch(key, { loading: false, error: "載入投遞包失敗，請稍後再試。" })
+      patch(key, { loading: false, error: t("interview.load_pkg_failed", "載入投遞包失敗，請稍後再試。") })
     }
   }
 
@@ -177,17 +179,17 @@ export function InterviewView(
         }),
       })
       const d = await r.json()
-      if (!r.ok) { patch(key, { busy: false, error: d.error || "評分失敗" }); return }
+      if (!r.ok) { patch(key, { busy: false, error: d.error || t("interview.score_failed", "評分失敗") }); return }
       patch(key, {
         busy: false, feedback: d as AnswerFeedback,
         transcript: [...cur.transcript, { question: q.question, answer: cur.answer, score: (d as AnswerFeedback).score }],
       })
     } catch (e) {
       if ((e as Error)?.name === "AbortError") {
-        patch(key, { busy: false, error: "已停止任務" })
+        patch(key, { busy: false, error: t("interview.task_stopped", "已停止任務") })
         return
       }
-      patch(key, { busy: false, error: "連線發生問題。" })
+      patch(key, { busy: false, error: t("common.connection_error", "連線發生問題。") })
     } finally {
       finishTask(key, ctrl)
     }
@@ -212,14 +214,14 @@ export function InterviewView(
         }),
       })
       const d = await r.json()
-      if (!r.ok) { patch(key, { busy: false, error: d.error || "總評失敗" }); return }
+      if (!r.ok) { patch(key, { busy: false, error: d.error || t("interview.summary_failed", "總評失敗") }); return }
       patch(key, { busy: false, summary: d as InterviewSummary })
     } catch (e) {
       if ((e as Error)?.name === "AbortError") {
-        patch(key, { busy: false, error: "已停止任務" })
+        patch(key, { busy: false, error: t("interview.task_stopped", "已停止任務") })
         return
       }
-      patch(key, { busy: false, error: "連線發生問題。" })
+      patch(key, { busy: false, error: t("common.connection_error", "連線發生問題。") })
     } finally {
       finishTask(key, ctrl)
     }
@@ -257,7 +259,7 @@ export function InterviewView(
       ))}
       <button onClick={() => setCurrentKey(null)}
         className="px-3 py-1.5 rounded-lg text-sm border border-dashed border-slate-300 text-slate-500 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-300">
-        ＋ 新面試
+        ＋ {t("interview.new_interview", "新面試")}
       </button>
     </div>
   )
@@ -270,9 +272,9 @@ export function InterviewView(
         {packages.length > 0 && (
           <Card className="p-5">
             <h3 className="font-semibold mb-1 flex items-center gap-2">
-              <Archive className="w-4 h-4 text-brand-600" />用「我的投遞包」開始模擬
+              <Archive className="w-4 h-4 text-brand-600" />{t("interview.use_pkg", "用「我的投遞包」開始模擬")}
             </h3>
-            <p className="text-sm text-slate-500 mb-3">選一筆投遞包，用它的 JD 與履歷開一個獨立的面試對話。</p>
+            <p className="text-sm text-slate-500 mb-3">{t("interview.use_pkg_desc", "選一筆投遞包，用它的 JD 與履歷開一個獨立的面試對話。")}</p>
             <div className="space-y-2 max-h-72 overflow-auto">
               {packages.map((p) => (
                 <button key={p.id} onClick={() => startPackageSession(p)}
@@ -293,29 +295,29 @@ export function InterviewView(
         )}
         <Card className="p-5">
           <p className="text-sm text-slate-600 mb-2">
-            {packages.length > 0 ? "或貼上" : "貼上"}目標職缺 JD，AI 面試官會依你的履歷出題、逐題給回饋與評分。
+            {packages.length > 0 ? t("interview.or_paste", "或貼上") : t("interview.paste", "貼上")}{t("interview.paste_desc", "目標職缺 JD，AI 面試官會依你的履歷出題、逐題給回饋與評分。")}
           </p>
           <div className="mb-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600 flex items-center gap-2">
             <UserRound className="w-4 h-4 text-slate-400 shrink-0" />
             {activeProfile
-              ? <>目前使用 Profile：<span className="font-medium text-slate-800">{profileDisplayName(activeProfile.profile)}</span></>
-              : "目前未選 Profile；開始後會使用範例背景示意。"}
+              ? <>{t("interview.current_profile", "目前使用 Profile：")}<span className="font-medium text-slate-800">{profileDisplayName(activeProfile.profile)}</span></>
+              : t("interview.no_profile", "目前未選 Profile；開始後會使用範例背景示意。")}
           </div>
           <textarea
             className="w-full border border-slate-300 rounded-lg p-3 text-sm h-32 focus:outline-none focus:ring-2 focus:ring-brand-200"
-            placeholder="貼上職缺 JD 文字…" value={manualJd} onChange={(e) => setManualJd(e.target.value)} />
+            placeholder={t("pipeline.paste_jd", "貼上職缺 JD 文字…")} value={manualJd} onChange={(e) => setManualJd(e.target.value)} />
           <div className="flex flex-wrap gap-2 mt-3">
             <Button icon={MessagesSquare} disabled={!manualJd.trim()}
               onClick={() => { startSession("manual-" + Date.now(), jdTitle(manualJd), manualJd, activeProfile?.profile ?? null); setManualJd("") }}>
-              開始面試
+              {t("interview.start_interview", "開始面試")}
             </Button>
-            <Button variant="secondary" onClick={loadSample}>載入範例 JD</Button>
+            <Button variant="secondary" onClick={loadSample}>{t("interview.load_sample_jd", "載入範例 JD")}</Button>
           </div>
         </Card>
         {!activeProfile && packages.length === 0 && sessions.length === 0 && (
           <Card className="p-2">
-            <EmptyState icon={MessagesSquare} title="先到「自動找職缺」或「履歷健檢」提供履歷"
-              desc="面試官會依你的真實背景出題；沒有履歷時會用範例背景示意。" />
+            <EmptyState icon={MessagesSquare} title={t("interview.empty_state_title", "先到「自動找職缺」或「履歷健檢」提供履歷")}
+              desc={t("interview.empty_state_desc", "面試官會依你的真實背景出題；沒有履歷時會用範例背景示意。")} />
           </Card>
         )}
       </div>
@@ -330,8 +332,8 @@ export function InterviewView(
         <Card className="p-8">
           <div className="flex flex-col items-center gap-3 text-slate-500">
             <Loader2 className="w-7 h-7 animate-spin text-brand-500" />
-            <p className="text-sm">AI 面試官正在依「{cur.title}」這份職缺出題…</p>
-            <Button variant="danger" icon={XCircle} onClick={() => stopSessionTask(cur.key)}>停止</Button>
+            <p className="text-sm">{t("interview.generating_questions", "AI 面試官正在依「{{title}}」這份職缺出題…", { title: cur.title })}</p>
+            <Button variant="danger" icon={XCircle} onClick={() => stopSessionTask(cur.key)}>{t("common.stop", "停止")}</Button>
           </div>
         </Card>
       </div>
@@ -345,7 +347,7 @@ export function InterviewView(
         {tabs}
         <Card className="p-6">
           <p className="text-sm text-rose-600 mb-3 flex items-center gap-2"><AlertTriangle className="w-4 h-4" />{cur.error}</p>
-          <Button variant="secondary" icon={RefreshCw} onClick={() => beginQuestions(cur.key, cur.jd, cur.profile)}>重試出題</Button>
+          <Button variant="secondary" icon={RefreshCw} onClick={() => beginQuestions(cur.key, cur.jd, cur.profile)}>{t("interview.retry_generate", "重試出題")}</Button>
         </Card>
       </div>
     )
@@ -359,19 +361,19 @@ export function InterviewView(
         <Card className="p-6 flex items-center gap-6">
           <ScoreRing score={cur.summary.overall_score} size={110} />
           <div>
-            <h2 className="text-lg font-bold mb-1">面試總評 · {cur.title}</h2>
+            <h2 className="text-lg font-bold mb-1">{t("interview.summary_title", "面試總評")} · {cur.title}</h2>
             <p className="text-sm text-slate-600">{cur.summary.summary}</p>
           </div>
         </Card>
         {cur.summary.advice.length > 0 && (
           <Card className="p-5">
-            <h3 className="font-bold mb-2 flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-amber-500" />接下來最該補強</h3>
+            <h3 className="font-bold mb-2 flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-amber-500" />{t("interview.needs_improvement", "接下來最該補強")}</h3>
             <ul className="list-disc pl-5 text-sm space-y-1 text-slate-700">
               {cur.summary.advice.map((a, i) => <li key={i}>{a}</li>)}
             </ul>
           </Card>
         )}
-        <Button variant="secondary" icon={RefreshCw} onClick={() => beginQuestions(cur.key, cur.jd, cur.profile)}>再來一場</Button>
+        <Button variant="secondary" icon={RefreshCw} onClick={() => beginQuestions(cur.key, cur.jd, cur.profile)}>{t("interview.try_again", "再來一場")}</Button>
       </div>
     )
   }
@@ -382,19 +384,19 @@ export function InterviewView(
     <div className="space-y-4">
       {tabs}
       <div className="flex items-center justify-between">
-        <span className="text-sm text-slate-500">{cur.title}｜第 {cur.idx + 1} / {cur.questions.length} 題</span>
+        <span className="text-sm text-slate-500">{cur.title}｜{t("interview.question_number", "第 {{current}} / {{total}} 題", { current: cur.idx + 1, total: cur.questions.length })}</span>
         <div className="flex items-center gap-2">
-          {cur.busy && <Button variant="danger" size="sm" icon={XCircle} onClick={() => stopSessionTask(cur.key)}>停止</Button>}
+          {cur.busy && <Button variant="danger" size="sm" icon={XCircle} onClick={() => stopSessionTask(cur.key)}>{t("common.stop", "停止")}</Button>}
           <Button variant="ghost" size="sm" icon={RefreshCw} disabled={cur.busy}
             onClick={() => beginQuestions(cur.key, cur.jd, cur.profile)}>
-            重新開始
+            {t("interview.restart", "重新開始")}
           </Button>
         </div>
       </div>
       <Card className="p-5">
         <div className="flex items-center gap-2 mb-2">
           {q?.category && <Badge tone="brand">{q.category}</Badge>}
-          <span className="text-xs text-slate-400">面試官提問</span>
+          <span className="text-xs text-slate-400">{t("interview.interviewer_asks", "面試官提問")}</span>
         </div>
         <p className="text-base font-medium text-slate-900">{q?.question}</p>
       </Card>
@@ -403,35 +405,35 @@ export function InterviewView(
         <Card className="p-5">
           <textarea
             className="w-full border border-slate-300 rounded-lg p-3 text-sm h-36 focus:outline-none focus:ring-2 focus:ring-brand-200"
-            placeholder="輸入你的回答…" value={cur.answer} onChange={(e) => setAnswer(e.target.value)} />
+            placeholder={t("interview.answer_placeholder", "輸入你的回答…")} value={cur.answer} onChange={(e) => setAnswer(e.target.value)} />
           <div className="mt-3">
-            <Button onClick={submitAnswer} loading={cur.busy} disabled={!cur.answer.trim()} icon={CheckCircle2}>送出回答</Button>
-            {cur.busy && <Button variant="danger" icon={XCircle} onClick={() => stopSessionTask(cur.key)} className="ml-2">停止</Button>}
+            <Button onClick={submitAnswer} loading={cur.busy} disabled={!cur.answer.trim()} icon={CheckCircle2}>{t("interview.submit_answer", "送出回答")}</Button>
+            {cur.busy && <Button variant="danger" icon={XCircle} onClick={() => stopSessionTask(cur.key)} className="ml-2">{t("common.stop", "停止")}</Button>}
           </div>
         </Card>
       ) : (
         <Card className="p-5 avoid-break animate-fade-in-up">
           <div className="flex items-center gap-4 mb-3">
             <ScoreRing score={cur.feedback.score} size={84} />
-            <div className="text-sm text-slate-600">這題的即時回饋</div>
+            <div className="text-sm text-slate-600">{t("interview.live_feedback", "這題的即時回饋")}</div>
           </div>
           {cur.feedback.strengths.length > 0 && (<>
-            <p className="text-sm font-medium mt-2 mb-1 text-emerald-700 flex items-center gap-1"><CheckCircle2 className="w-4 h-4" />做得好</p>
+            <p className="text-sm font-medium mt-2 mb-1 text-emerald-700 flex items-center gap-1"><CheckCircle2 className="w-4 h-4" />{t("interview.good", "做得好")}</p>
             <ul className="list-disc pl-5 text-sm space-y-1 text-slate-700">{cur.feedback.strengths.map((s, i) => <li key={i}>{s}</li>)}</ul>
           </>)}
           {cur.feedback.improvements.length > 0 && (<>
-            <p className="text-sm font-medium mt-3 mb-1 text-amber-700 flex items-center gap-1"><AlertTriangle className="w-4 h-4" />可改進</p>
+            <p className="text-sm font-medium mt-3 mb-1 text-amber-700 flex items-center gap-1"><AlertTriangle className="w-4 h-4" />{t("interview.needs_improvement", "可改進")}</p>
             <ul className="list-disc pl-5 text-sm space-y-1 text-slate-700">{cur.feedback.improvements.map((s, i) => <li key={i}>{s}</li>)}</ul>
           </>)}
           {cur.feedback.sample_answer && (<>
-            <p className="text-sm font-medium mt-3 mb-1 text-slate-700">示範答法</p>
+            <p className="text-sm font-medium mt-3 mb-1 text-slate-700">{t("interview.sample_answer", "示範答法")}</p>
             <p className="text-sm whitespace-pre-wrap leading-relaxed text-slate-600 bg-slate-50 rounded-lg p-3">{cur.feedback.sample_answer}</p>
           </>)}
           <div className="mt-4">
             <Button onClick={next} loading={cur.busy} icon={ArrowRight}>
-              {cur.idx < cur.questions.length - 1 ? "下一題" : "看總評"}
+              {cur.idx < cur.questions.length - 1 ? t("interview.next_question", "下一題") : t("interview.see_summary", "看總評")}
             </Button>
-            {cur.busy && <Button variant="danger" icon={XCircle} onClick={() => stopSessionTask(cur.key)} className="ml-2">停止</Button>}
+            {cur.busy && <Button variant="danger" icon={XCircle} onClick={() => stopSessionTask(cur.key)} className="ml-2">{t("common.stop", "停止")}</Button>}
           </div>
         </Card>
       )}

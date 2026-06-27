@@ -11,12 +11,13 @@ interface BackendData {
   byok?: { base_url?: string; model?: string; has_key?: boolean }
 }
 
-const ONBOARD_IDS = ["claude_cli", "codex_cli", "openai"]
-const CLI_IDS = ["claude_cli", "codex_cli"]
+const ONBOARD_IDS = ["claude_cli", "codex_cli", "agy_cli", "openai"]
+const CLI_IDS = ["claude_cli", "codex_cli", "agy_cli"]
 
 const DESC: Record<string, string> = {
   claude_cli: "使用本機 Claude Code CLI，不需要在本 App 內輸入 API key。",
   codex_cli: "使用本機 Codex CLI，不需要在本 App 內輸入 API key。",
+  agy_cli: "使用本機 Agy CLI，不需要在本 App 內輸入 API key。",
   openai: "使用 OpenAI 相容端點，適合 OpenAI、DeepSeek、Groq、OpenRouter、Ollama、LM Studio。",
 }
 

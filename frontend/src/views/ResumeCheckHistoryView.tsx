@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import type { MouseEvent } from "react"
+import { useTranslation } from "react-i18next"
 import type { ResumeCheckDetail, ResumeCheckSummary, UserProfile } from "../types"
 import { Dashboard } from "../components/Dashboard"
 import { Card } from "../ui/Card"
@@ -20,6 +21,7 @@ export function ResumeCheckHistoryView(
   { active, onProfile }:
   { active: boolean; onProfile?: (p: UserProfile, meta?: { label?: string; resumeLabel?: string }) => void },
 ) {
+  const { t } = useTranslation();
   const [list, setList] = useState<ResumeCheckSummary[]>([])
   const [detail, setDetail] = useState<ResumeCheckDetail | null>(null)
   const [busy, setBusy] = useState(false)
@@ -51,7 +53,7 @@ export function ResumeCheckHistoryView(
       <div>
         <button onClick={() => setDetail(null)}
           className="text-sm text-brand-600 hover:text-brand-700 mb-3 inline-flex items-center gap-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 rounded">
-          <ArrowLeft className="w-4 h-4" />回到健檢紀錄
+          <ArrowLeft className="w-4 h-4" />{t("history.back_to_resume_checks", "回到健檢紀錄")}
         </button>
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
@@ -62,23 +64,23 @@ export function ResumeCheckHistoryView(
               </Badge>
             </div>
             <p className="text-sm text-slate-500 mt-1">
-              {fmtDate(detail.created_at)}・{detail.resume_label || "履歷"}
+              {fmtDate(detail.created_at)}・{detail.resume_label || t("resume_health.resume", "履歷")}
             </p>
           </div>
           {detail.profile && (
             <button type="button"
               onClick={() => onProfile?.(detail.profile as UserProfile, {
                 label: detail.candidate_name || detail.label,
-                resumeLabel: detail.resume_label || "健檢紀錄",
+                resumeLabel: detail.resume_label || t("history.resume_checks", "健檢紀錄"),
               })}
               className="inline-flex items-center gap-1.5 text-sm border border-slate-300 rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-300">
-              <UserRound className="w-4 h-4" />套用 Profile
+              <UserRound className="w-4 h-4" />{t("history.apply_profile", "套用 Profile")}
             </button>
           )}
         </div>
         {detail.assessment_mode === "fallback" && detail.fallback_reason && (
           <p className="mb-4 text-sm text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
-            深度健檢未完成原因：{detail.fallback_reason}
+            {t("history.fallback_reason_prefix", "深度健檢未完成原因：")}{detail.fallback_reason}
           </p>
         )}
         <Dashboard a={detail.assessment} />
@@ -91,8 +93,8 @@ export function ResumeCheckHistoryView(
       <Card className="p-2">
         <EmptyState
           icon={FileChartColumn}
-          title="尚無健檢紀錄"
-          desc="完成履歷健檢後，結果會自動儲存在這裡，方便比較不同履歷版本。"
+          title={t("history.no_resume_checks", "尚無健檢紀錄")}
+          desc={t("history.no_resume_checks_desc", "完成履歷健檢後，結果會自動儲存在這裡，方便比較不同履歷版本。")}
         />
       </Card>
     )
@@ -100,7 +102,7 @@ export function ResumeCheckHistoryView(
 
   return (
     <div className="space-y-3">
-      <h2 className="font-semibold">健檢紀錄（{list.length}）</h2>
+      <h2 className="font-semibold">{t("history.resume_checks", "健檢紀錄")}（{list.length}）</h2>
       {list.map((item) => (
         <Card key={item.id} interactive className="p-4 flex items-center gap-4 cursor-pointer" onClick={() => open(item.id)}>
           <div className="shrink-0 w-12 h-12 rounded-xl grid place-items-center bg-brand-50 text-brand-600">
@@ -114,10 +116,10 @@ export function ResumeCheckHistoryView(
               </Badge>
             </div>
             <p className="text-sm text-slate-600 truncate">
-              總分 {item.overall_score}・{fmtDate(item.created_at)}
+              {t("history.overall_score", "總分")} {item.overall_score}・{fmtDate(item.created_at)}
             </p>
             {item.assessment_mode === "fallback" && item.fallback_reason && (
-              <p className="text-xs text-amber-700 truncate mt-0.5">原因：{item.fallback_reason}</p>
+              <p className="text-xs text-amber-700 truncate mt-0.5">{t("history.reason", "原因：")}{item.fallback_reason}</p>
             )}
           </div>
           <button onClick={(e) => del(item.id, e)} aria-label={`刪除 ${item.label}`} title="刪除"
@@ -127,7 +129,7 @@ export function ResumeCheckHistoryView(
           </button>
         </Card>
       ))}
-      {busy && <p className="text-sm text-slate-400">載入中…</p>}
+      {busy && <p className="text-sm text-slate-400">{t("common.loading", "載入中…")}</p>}
     </div>
   )
 }

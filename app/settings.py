@@ -21,22 +21,23 @@ def get_model(tier: str) -> str:
 
 
 # 可選後端（仿 open-design 的「本機 CLI ＋ BYOK」）：
-# - claude_cli / codex_cli：本機 CLI 訂閱，免 API key、不吃額度（預設，主推）。
+# - claude_cli / codex_cli / agy_cli：本機 CLI 訂閱，免 API key、不吃額度（預設，主推）。
 # - openai：BYOK 的 OpenAI 相容端點（base_url + key + model），一個後端吃 OpenAI / DeepSeek /
 #           Gemini / Groq / OpenRouter / Ollama / LM Studio / vLLM 等任何相容服務。
 # - anthropic：Anthropic API 金鑰（雲端/部署可選，不在主選單露出）。
-SUPPORTED_BACKENDS: tuple[str, ...] = ("claude_cli", "codex_cli", "openai", "anthropic")
+SUPPORTED_BACKENDS: tuple[str, ...] = ("claude_cli", "codex_cli", "agy_cli", "openai", "anthropic")
 
 BACKEND_LABELS: dict[str, str] = {
     "claude_cli": "Claude Code CLI（訂閱）",
     "codex_cli": "Codex CLI（訂閱）",
+    "agy_cli": "Agy CLI（本機）",
     "openai": "OpenAI 相容 (BYOK)",
     "anthropic": "Anthropic API（金鑰）",
 }
 
 # 後端類型：cli=本機 CLI 訂閱、byok=自帶金鑰的 OpenAI 相容端點、api=雲端 API 金鑰。
 BACKEND_KIND: dict[str, str] = {
-    "claude_cli": "cli", "codex_cli": "cli", "openai": "byok", "anthropic": "api",
+    "claude_cli": "cli", "codex_cli": "cli", "agy_cli": "cli", "openai": "byok", "anthropic": "api",
 }
 
 # 啟動時的後端（.env 的 LLM_BACKEND；預設本機 claude_cli）。執行期可由 set_backend 切換。
@@ -65,8 +66,9 @@ def set_backend(name: str, *, persist: bool = False) -> None:
 CLI_MODEL_CHOICES: dict[str, list[str]] = {
     "claude_cli": ["auto", "haiku", "sonnet", "opus"],
     "codex_cli": ["auto", "gpt-5-codex", "gpt-5", "o4-mini"],
+    "agy_cli": ["auto", "gemini-3.5-pro", "gemini-3.5-flash"],
 }
-_cli_model: dict[str, str] = {"claude_cli": "auto", "codex_cli": "auto"}
+_cli_model: dict[str, str] = {"claude_cli": "auto", "codex_cli": "auto", "agy_cli": "auto"}
 
 
 def cli_model(backend: str) -> str:
