@@ -23,13 +23,13 @@ Runs through your own **Claude Code / Codex CLI** subscription (no separate API 
 
 </div>
 
-> The app UI is in Traditional Chinese, tailored to Taiwan's job-search conventions (104 / Cake / Yourator / LinkedIn). Data is stored locally by default; when you run AI features, your résumé and prompts are handled by the CLI or BYOK backend you choose. See [Privacy and Data Handling](docs/PRIVACY.md).
+> The app UI supports English and Traditional Chinese, tailored to Europe's job-search conventions (LinkedIn / Xing / Indeed). Data is stored locally by default; when you run AI features, your résumé and prompts are handled by the CLI or BYOK backend you choose. See [Privacy and Data Handling](docs/PRIVACY.md).
 
 ---
 
 ## Feature Overview
 
-- **Auto job search**: upload a resume, let AI derive keywords, and search 104 / Yourator / LinkedIn / Cake.
+- **Auto job search**: upload a resume, let AI derive keywords, and search LinkedIn / Xing / Indeed.
 - **Ranked results**: stream search results, score fit, and open the right jobs for an application package.
 - **Package workbench**: generate tailored resume bullets, cover letters, interview prep, and company research.
 - **Resume health check**: audit ATS fit, show deep-check or fallback status, and keep local report history.
@@ -105,9 +105,9 @@ To build the unsigned macOS `.app`, build the frontend on macOS and run: `python
 
 ## Features
 
-- **Auto job search** — paste or upload a résumé; the system derives keywords and searches 104 / Yourator / LinkedIn / Cake **in parallel**, ranking by fit in **streaming batches** (results appear as they're scored). Pick your **region(s) before searching** (applied at-source on 104, result-side on the others), filter by **fit band** (high / mid-and-up / all), set pages per source, and track named companies in a separate section.
+- **Auto job search** — paste or upload a résumé; the system derives keywords and searches LinkedIn / Xing / Indeed **in parallel**, ranking by fit in **streaming batches** (results appear as they're scored). Pick your **region(s) before searching** (applied at-source), filter by **fit band** (high / mid-and-up / all), set pages per source, and track named companies in a separate section.
 - **Search history** — every search is auto-saved; revisit it, regenerate a package, or delete it.
-- **Résumé health check** — scores against Taiwan ATS conventions with concrete fixes and before/after rewrites.
+- **Résumé health check** — scores against European ATS conventions with concrete fixes and before/after rewrites.
 - **Application-package workbench** — click *Generate* on any job and a multi-agent pipeline (parse JD → match score → company research → tailored résumé → cover letter → interview kit → critique) runs **in the background**: it keeps going if you navigate away or refresh the page, and several jobs run **in parallel**. The workbench is a clean, single-screen viewer — a live agent-orchestration trace on the left, the finished documents paginated on the right.
 - **My packages (library)** — every generated package lands here with a status (in-progress → pending review → approved). **Review, approve, or delete** each, re-open one to the workbench, launch a mock interview from it, and export to **Word (.docx)** (PDF via the browser's print dialog).
 - **Mock interview** — generates questions from the JD and your résumé, with per-answer feedback and scores. Start from any saved package or a pasted JD; **each job gets its own conversation tab**, so you can run several mock interviews side by side without overwriting.
@@ -139,8 +139,8 @@ React SPA (Vite)  ──HTTP · SSE · poll──►  FastAPI
                   ┌─────────────────────────┼────────────────────────┐
                   ▼                         ▼                       ▼
         LangGraph StateGraph           Job sources             App SQLite
-        (one per background run,       104 / Yourator /        (packages w/ status
-         own in-memory checkpoint,     LinkedIn / Cake          進行中→待審→已核可,
+        (one per background run,       LinkedIn / Xing /       (packages w/ status
+         own in-memory checkpoint,     Indeed                   進行中→待審→已核可,
          runs in parallel)                                      memory, searches)
                   │
                   ▼
@@ -186,7 +186,7 @@ The `summarize()` step is a pure function with its own unit tests, so the aggreg
 ```
 app/
   agents/     # résumé eval, job search, company research, refine chat, interview sim, …
-  sources/    # 104 / Yourator / LinkedIn / Cake search + registry + region map
+  sources/    # LinkedIn / Xing / Indeed search + registry + region map
   store/      # app-level SQLite: history, memory, searches
   intake/     # résumé/JD parsing and fetching
   export/     # Word (.docx) export
@@ -223,7 +223,7 @@ Issues and pull requests are welcome. For non-trivial changes, please open an is
 
 ## Disclaimer
 
-This project is for **personal, educational, and research use**. It queries public job listings from 104 / Yourator / LinkedIn / Cake at low frequency to help an individual job seeker. You are responsible for complying with each site's Terms of Service and `robots.txt`; do **not** use it for bulk scraping or commercial data harvesting. The software is provided "as is", without warranty of any kind. LLM-generated content (résumés, cover letters, company research) may contain inaccuracies — always review before use.
+This project is for **personal, educational, and research use**. It queries public job listings from LinkedIn / Xing / Indeed at low frequency to help an individual job seeker. You are responsible for complying with each site's Terms of Service and `robots.txt`; do **not** use it for bulk scraping or commercial data harvesting. The software is provided "as is", without warranty of any kind. LLM-generated content (résumés, cover letters, company research) may contain inaccuracies — always review before use.
 
 ## License
 
