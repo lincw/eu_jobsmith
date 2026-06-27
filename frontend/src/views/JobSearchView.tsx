@@ -31,11 +31,15 @@ const sortByFit = (arr: JobMatch[]) =>
 // 適配色帶分段篩選（內部仍用 fit_score）：全部 / 高(≥80) / 中以上(≥60)。
 const FIT_BANDS = [{ v: 0, l: "全部" }, { v: 80, l: "高" }, { v: 60, l: "中以上" }]
 
-// 搜尋地點（縣市，對應後端 app/sources/regions.py）：搜尋前選定、所有來源一致生效；不選＝全台。
-const COUNTIES = [
-  "台北市", "新北市", "桃園市", "台中市", "台南市", "高雄市",
-  "基隆市", "新竹縣市", "苗栗縣", "彰化縣", "南投縣", "雲林縣",
-  "嘉義縣市", "屏東縣", "宜蘭縣", "花蓮縣", "台東縣",
+// Search location — must match keys in backend app/sources/regions.py exactly.
+// "European Union" is a pan-EU option; individual countries follow alphabetically with Germany first.
+const EU_REGIONS = [
+  "European Union",
+  "Germany",
+  "Austria", "Belgium", "Bulgaria", "Croatia", "Cyprus", "Czech Republic",
+  "Denmark", "Estonia", "Finland", "France", "Greece", "Hungary", "Ireland",
+  "Italy", "Latvia", "Lithuania", "Luxembourg", "Malta", "Netherlands",
+  "Poland", "Portugal", "Romania", "Slovakia", "Slovenia", "Spain", "Sweden",
 ]
 
 function mergeSource(arr: SourceStat[], ev: { source: string; count: number; blocked: boolean }): SourceStat[] {
@@ -67,7 +71,7 @@ export function JobSearchView(
   const [companyJobs, setCompanyJobs] = useState<JobMatch[]>([])
   const [rankTotal, setRankTotal] = useState(0)
   const [minFit, setMinFit] = useState(0)            // 適配色帶門檻（0/60/80）
-  const [regions, setRegions] = useState<string[]>([])  // 搜尋地點（縣市 key；空 = 全台）
+  const [regions, setRegions] = useState<string[]>([])  // selected region keys; empty = global
   const [linkedin, setLinkedin] = useState("")
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [blockedNote, setBlockedNote] = useState("")
@@ -302,8 +306,8 @@ export function JobSearchView(
       {(formOpen || !hasResults) && (
       <Card className="p-5 mb-5">
         <p className="text-sm text-slate-600 mb-2">
-          丟上你的履歷，AI 自動推導關鍵字、搜尋 104 / Yourator / LinkedIn / Cake 並依履歷排序；
-          也可加入想去的公司，單獨列出它們的開缺。填好後按「開始自動找職缺」。
+          Upload your resume and AI will derive keywords, search LinkedIn and other sources, and rank results by fit.
+          Optionally add target companies to list their openings separately.
         </p>
         {activeProfile && (
           <div className="mb-3 rounded-lg border border-brand-200 bg-brand-50/50 p-3 flex flex-col sm:flex-row sm:items-center gap-3">
@@ -385,14 +389,14 @@ export function JobSearchView(
 
         <div className="mt-4">
           <label className="text-sm font-medium text-slate-700 mb-1.5 flex items-center gap-1.5">
-            <MapPin className="w-4 h-4 text-slate-400" />搜尋地點（選填、可多選；不選＝全台）
+            <MapPin className="w-4 h-4 text-slate-400" />Location (optional, multi-select; none = global)
           </label>
           <div className="flex flex-wrap gap-1.5">
             <button type="button" onClick={() => setRegions([])} disabled={busy} aria-pressed={regions.length === 0}
               className={`px-2.5 py-1 rounded-lg border text-xs transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 disabled:opacity-50 ${
                 regions.length === 0 ? "bg-brand-600 text-white border-brand-600" : "bg-white border-slate-300 text-slate-600 hover:bg-slate-50"
-              }`}>不限縣市</button>
-            {COUNTIES.map((c) => {
+              }`}>Any location</button>
+            {EU_REGIONS.map((c) => {
               const on = regions.includes(c)
               return (
                 <button key={c} type="button" onClick={() => toggleRegion(c)} disabled={busy} aria-pressed={on}
@@ -402,7 +406,7 @@ export function JobSearchView(
               )
             })}
           </div>
-          <p className="text-xs text-slate-400 mt-1">選了縣市就只找那些地區的職缺，所有來源一致生效（104 直接從來源端篩，其餘來源依職缺地點過濾）。</p>
+          <p className="text-xs text-slate-400 mt-1">Selecting a country filters LinkedIn results by location. "European Union" searches across all EU member states.</p>
         </div>
 
         <div className="flex flex-wrap gap-2 mt-4 items-center">
