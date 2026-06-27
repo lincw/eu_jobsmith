@@ -3,14 +3,15 @@
 <img src="https://raw.githubusercontent.com/kevin333353/jobsmith/master/frontend/public/logo512.png" alt="Jobsmith logo" width="84" height="84" />
 
 # Jobsmith
+(This is a fork and modified to fit Europe)
 
-**針對台灣求職市場的開源多代理（multi-agent）AI 求職 co-pilot。**
+**An open-source, multi-agent AI co-pilot for the Europe job market.**
 
-找職缺、履歷健檢、產生客製投遞包（履歷・求職信・面試準備・公司情報）、模擬面試。產生投遞包是**背景工作**（離開頁面或重新整理都不中斷，還能多個職缺平行跑）；看完多 agent 即時編排，再到「我的投遞包」逐一核可。
+Find jobs, audit your résumé, and generate tailored application packages — résumé, cover letter, interview prep, and company research. Generation runs **in the background** (it keeps going if you navigate away or refresh, and multiple jobs run in parallel); you watch the live multi-agent trace, then review and approve each package in your library.
 
-預設用你本機的 **Claude Code / Codex CLI 訂閱**當 AI 引擎（**免自行申請 API key**），也能**自備金鑰**接任何 OpenAI 相容模型。
+Runs through your own **Claude Code / Codex CLI** subscription (no separate API key required) — or **bring your own key** for any OpenAI-compatible model.
 
-[English](README.en.md) · [**下載（Windows / macOS unsigned）**](#下載) · [快速開始](#快速開始從原始碼) · [系統架構](#系統架構) · [隱私](docs/PRIVACY.md)
+[繁體中文](README.zh-TW.md) · [**Download (Windows / unsigned macOS)**](#download) · [Quick Start](#quick-start-from-source) · [Architecture](#architecture) · [Privacy](docs/PRIVACY.md)
 
 ![License](https://img.shields.io/badge/License-Apache_2.0-green)
 ![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)
@@ -22,207 +23,208 @@
 
 </div>
 
-> 應用程式介面為繁體中文，貼合台灣求職生態（104 / Cake / Yourator / LinkedIn）。資料以本機保存為主；執行 AI 功能時，履歷與 prompt 會交給你選擇的 CLI 或 BYOK 後端處理。詳見 [隱私與資料處理](docs/PRIVACY.md)。
+> The app UI is in Traditional Chinese, tailored to Taiwan's job-search conventions (104 / Cake / Yourator / LinkedIn). Data is stored locally by default; when you run AI features, your résumé and prompts are handled by the CLI or BYOK backend you choose. See [Privacy and Data Handling](docs/PRIVACY.md).
 
 ---
 
-## 功能概覽
+## Feature Overview
 
-- **自動找職缺**：上傳履歷後由 AI 推導關鍵字，搜尋 104 / Yourator / LinkedIn / Cake。
-- **職缺評分排序**：分批串流職缺、評估適配度，並可直接進入投遞包流程。
-- **投遞工作包**：產出客製履歷、求職信、面試準備與公司研究。
-- **履歷健檢**：檢查 ATS 與內容完整度，標示深度健檢或備援健檢，並保留本機歷史紀錄。
+- **Auto job search**: upload a resume, let AI derive keywords, and search 104 / Yourator / LinkedIn / Cake.
+- **Ranked results**: stream search results, score fit, and open the right jobs for an application package.
+- **Package workbench**: generate tailored resume bullets, cover letters, interview prep, and company research.
+- **Resume health check**: audit ATS fit, show deep-check or fallback status, and keep local report history.
 
 ---
 
-## 下載
+## Download
 
 **Windows**
 
-**[⬇ 下載 Jobsmith for Windows（64 位元）](https://github.com/kevin333353/jobsmith/releases/latest/download/Jobsmith.exe)** — 單一 `.exe`，免裝 Python / Node.js。
+**[⬇ Download Jobsmith for Windows (64-bit)](https://github.com/kevin333353/jobsmith/releases/latest/download/Jobsmith.exe)** — a single `.exe`. No Python or Node.js required.
 
-1. 從 [最新 release](https://github.com/kevin333353/jobsmith/releases/latest) 下載 `Jobsmith.exe`。
-2. 雙擊開啟，會跳出原生視窗（第一次啟動會解壓約 10–30 秒）。
-3. 在**右上角控制台**選你的 AI 引擎：
-   - **本機 CLI**——PATH 上已登入的 **Claude Code**（`claude`）或 **Codex CLI**（`codex`），或
-   - **BYOK**——填 `base_url` + `api_key` + `model` 接任何 OpenAI 相容端點（OpenAI、DeepSeek、Gemini、Groq、OpenRouter、Ollama、LM Studio、vLLM…）。
+1. Grab `Jobsmith.exe` from the [latest release](https://github.com/kevin333353/jobsmith/releases/latest).
+2. Double-click it. A native window opens (the first launch unpacks for ~10–30s).
+3. In the **top-right control panel**, choose your AI engine:
+   - **Local CLI** — a logged-in **Claude Code** (`claude`) or **Codex CLI** (`codex`) on your `PATH`, **or**
+   - **BYOK** — `base_url` + `api_key` + `model` for any OpenAI-compatible endpoint (OpenAI, DeepSeek, Gemini, Groq, OpenRouter, Ollama, LM Studio, vLLM…).
 
-> **需求：** Windows 10/11（64 位元；WebView2 為 Windows 11 內建）。歷史、設定、`.env` 都存在 exe 旁邊；Jobsmith 不營運 hosted backend，AI 請求只會送到你選擇的後端。
+> **Requirements:** Windows 10/11 (64-bit; WebView2 is built into Windows 11). Your history, settings, and `.env` are saved next to the `.exe`; Jobsmith does not operate a hosted backend, and AI requests go only to the backend you choose.
 
 **macOS**
 
-- **[⬇ 下載 Jobsmith for macOS Apple Silicon](https://github.com/kevin333353/jobsmith/releases/latest/download/Jobsmith-macOS-arm64-unsigned.dmg)** — M1 / M2 / M3 / M4
-- **[⬇ 下載 Jobsmith for macOS Intel](https://github.com/kevin333353/jobsmith/releases/latest/download/Jobsmith-macOS-x64-unsigned.dmg)** — Intel Mac
+- **[⬇ Download Jobsmith for macOS Apple Silicon](https://github.com/kevin333353/jobsmith/releases/latest/download/Jobsmith-macOS-arm64-unsigned.dmg)** — M1 / M2 / M3 / M4
+- **[⬇ Download Jobsmith for macOS Intel](https://github.com/kevin333353/jobsmith/releases/latest/download/Jobsmith-macOS-x64-unsigned.dmg)** — Intel Macs
 
-macOS 目前是 **unsigned** `.dmg`，尚未做 Apple Developer ID 簽章與 notarization。第一次開啟可能被 Gatekeeper 擋下，請打開 DMG 後將 `Jobsmith.app` 拖到 Applications，再右鍵 `Jobsmith.app` →「打開」，或到系統設定允許。
+The macOS build is an **unsigned** `.dmg`. It is not signed with an Apple Developer ID and is not notarized, so first launch may trigger Gatekeeper. Open the DMG, drag `Jobsmith.app` to Applications, then use right-click → **Open**, or allow the app in System Settings.
 
-macOS 版資料與 `.env` 會存在 `~/Library/Application Support/Jobsmith`。
+The macOS app stores data and `.env` in `~/Library/Application Support/Jobsmith`.
 
-開發者可到 GitHub **Actions → Build unsigned macOS DMG** 手動重打 macOS 發佈檔；workflow 提供 `publish_release=true` 選項，可把 DMG 覆蓋到指定 release tag。
+Maintainers can run **Actions → Build unsigned macOS DMG** manually; the workflow has a `publish_release=true` option that replaces the DMG files on a chosen release tag.
 
-## 快速開始（從原始碼）
+## Quick Start (from source)
 
-> **環境需求：** Python 3.11+、Node.js 18+，以及 PATH 上已登入的 **Claude Code**（`claude`）或 **Codex CLI**（`codex`）（或一組 BYOK 金鑰）。
+> **Prerequisites:** Python 3.11+, Node.js 18+, and a logged-in **Claude Code** (`claude`) or **Codex CLI** (`codex`) on your `PATH` (or a BYOK key).
 
 ```bash
 git clone https://github.com/kevin333353/jobsmith.git
 cd jobsmith
 
-setup.bat            # Windows  — 一鍵安裝（venv + 相依 + 前端建置）
+setup.bat            # Windows  — one-time setup (venv + deps + frontend build)
 # ./setup.sh         # macOS / Linux / Git Bash
 
-desktop.bat          # 以原生桌面視窗啟動（推薦）
-# run.bat            # 或網頁版 → http://localhost:8000
+desktop.bat          # launch as a native desktop window (recommended)
+# run.bat            # or web mode → http://localhost:8000
 ```
 
-| 模式           | 指令                                                          | 說明                                       |
-| -------------- | ------------------------------------------------------------- | ------------------------------------------ |
-| **桌面 App**   | `desktop.bat`（或 `python desktop.py`）                       | 原生視窗；第一次會有後端選擇。             |
-| **網頁版**     | `run.bat`（或 `python -m uvicorn app.server:app --port 8000`） | 開 <http://localhost:8000>。               |
-| **CLI（單一 JD）** | `python -m app.cli data/demo_jobs/ai_engineer.txt`        | 無介面、單一 JD 跑一次。                   |
+| Mode             | Command                                                        | Notes                                                              |
+| ---------------- | ------------------------------------------------------------- | ----------------------------------------------------------------- |
+| **Desktop app**  | `desktop.bat` (or `python desktop.py`)                        | Native window; first run shows a backend picker.                   |
+| **Web**          | `run.bat` (or `python -m uvicorn app.server:app --port 8000`) | Open <http://localhost:8000>.                                     |
+| **CLI (one JD)** | `python -m app.cli data/demo_jobs/ai_engineer.txt`           | Headless single-JD run.                                            |
 
-自己打包 Windows `.exe`：`pip install pyinstaller && pyinstaller jobsmith.spec --noconfirm` → `dist/Jobsmith.exe`。
-macOS unsigned `.app` 請在 macOS 上先建置前端，再執行：`python -m PyInstaller jobsmith-macos.spec --noconfirm --clean` → `dist/Jobsmith.app`。
+To build your own Windows `.exe`: `pip install pyinstaller && pyinstaller jobsmith.spec --noconfirm` → `dist/Jobsmith.exe`.
+To build the unsigned macOS `.app`, build the frontend on macOS and run: `python -m PyInstaller jobsmith-macos.spec --noconfirm --clean` → `dist/Jobsmith.app`.
 
-## 目錄
+## Table of Contents
 
-- [功能概覽](#功能概覽)
-- [下載](#下載)
-- [快速開始](#快速開始從原始碼)
-- [功能](#功能)
-- [LLM 後端](#llm-後端)
-- [隱私與資料](#隱私與資料)
-- [系統架構](#系統架構)
-- [成效評測](#成效評測)
-- [技術棧](#技術棧)
-- [專案結構](#專案結構)
-- [測試](#測試)
+- [Feature Overview](#feature-overview)
+- [Download](#download)
+- [Quick Start](#quick-start-from-source)
+- [Features](#features)
+- [LLM Backends](#llm-backends)
+- [Privacy and Data](#privacy-and-data)
+- [Architecture](#architecture)
+- [Evaluation](#evaluation)
+- [Tech Stack](#tech-stack)
+- [Project Structure](#project-structure)
+- [Testing](#testing)
 - [Roadmap](#roadmap)
-- [貢獻](#貢獻)
-- [免責聲明](#免責聲明)
-- [授權](#授權)
+- [Contributing](#contributing)
+- [Disclaimer](#disclaimer)
+- [License](#license)
 
-## 功能
+## Features
 
-- **自動找職缺**：貼上或上傳履歷 → AI 推導關鍵字 → **並行**搜尋 104 / Yourator / LinkedIn / Cake → **分批串流**依適配度排序（邊評邊顯示）。可在**搜尋前先選縣市**（104 於來源端篩、其餘來源於結果端篩）、依**適配色帶**（高／中以上／全部）篩選、調整每來源頁數，並把指定公司的開缺列在獨立區塊。
-- **搜尋紀錄**：每次搜尋自動存整包，可回看、重新產生投遞包、刪除——不怕好職缺重找就不見。
-- **履歷健檢**：依台灣 ATS 慣例評分，給具體修改建議與改寫前後範例。
-- **投遞包工作台**：對任一職缺按「產生投遞包」，多代理流程（解析 JD → 匹配評分 → 公司情報 → 客製履歷 → 求職信 → 面試準備 → 品管反思）在**背景**執行——離開頁面或重新整理都不中斷，多個職缺還能**平行**跑。畫面乾淨一頁式：左側即時多代理編排、右側分頁瀏覽成品。
-- **我的投遞包**：每份產生的投遞包都會進這裡，並標示狀態（進行中 → 待審 → 已核可）。可**核可、刪除**、重新開到工作台、用它開模擬面試，並匯出 **Word（.docx）**（PDF 透過瀏覽器列印）。
-- **模擬面試**：依 JD 與你的履歷出題，逐題即時回饋與評分。可從任一份投遞包或貼 JD 開始；**每個職缺各自一個對話分頁**，可同時跑多場、互不覆蓋。
-- **個人化**：跨 session 記住最近履歷（免重傳）與偏好（目標職稱／語氣／想強調技能），並套用到產出。
+- **Auto job search** — paste or upload a résumé; the system derives keywords and searches 104 / Yourator / LinkedIn / Cake **in parallel**, ranking by fit in **streaming batches** (results appear as they're scored). Pick your **region(s) before searching** (applied at-source on 104, result-side on the others), filter by **fit band** (high / mid-and-up / all), set pages per source, and track named companies in a separate section.
+- **Search history** — every search is auto-saved; revisit it, regenerate a package, or delete it.
+- **Résumé health check** — scores against Taiwan ATS conventions with concrete fixes and before/after rewrites.
+- **Application-package workbench** — click *Generate* on any job and a multi-agent pipeline (parse JD → match score → company research → tailored résumé → cover letter → interview kit → critique) runs **in the background**: it keeps going if you navigate away or refresh the page, and several jobs run **in parallel**. The workbench is a clean, single-screen viewer — a live agent-orchestration trace on the left, the finished documents paginated on the right.
+- **My packages (library)** — every generated package lands here with a status (in-progress → pending review → approved). **Review, approve, or delete** each, re-open one to the workbench, launch a mock interview from it, and export to **Word (.docx)** (PDF via the browser's print dialog).
+- **Mock interview** — generates questions from the JD and your résumé, with per-answer feedback and scores. Start from any saved package or a pasted JD; **each job gets its own conversation tab**, so you can run several mock interviews side by side without overwriting.
+- **Personalization** — remembers your most recent résumé (no re-upload) and preferences (target titles, tone, skills to emphasize) across sessions, and applies them to outputs.
 
-## LLM 後端
+## LLM Backends
 
-從**右上角控制台**選你的 AI 引擎——**本機 CLI 訂閱**（免 API key）或 **BYOK**（任何 OpenAI 相容端點）。選了即生效；「測試」只是選用的連線檢查、非門檻。本機 CLI 可**重新掃描**、並可**自選模型**：
+Pick your AI engine from the **top-right control panel** — a **local CLI subscription** (no API key) or **BYOK** (any OpenAI-compatible endpoint). Selecting a backend takes effect immediately; the **Test** button is an optional connection check, never a gate. Local CLIs offer a **rescan** action and a **selectable model**.
 
-| 後端         | 認證方式                          | 說明                                                                                  |
-| ------------ | --------------------------------- | ------------------------------------------------------------------------------------- |
-| `claude_cli` | Claude Code 訂閱                  | **預設。** 免 API key；會移除 `ANTHROPIC_*` 環境變數。模型可自選（預設自動分層）。     |
-| `codex_cli`  | Codex 訂閱                        | 免 API key。模型可自選；預設沿用你的 Codex 設定。                                      |
-| `openai`     | BYOK——任何 OpenAI 相容端點        | `base_url` + `api_key` + `model`。可接 OpenAI、DeepSeek、Gemini、Groq、OpenRouter、Ollama、LM Studio、vLLM…  |
+| Backend      | Auth                                   | Notes                                                                                                    |
+| ------------ | -------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `claude_cli` | Claude Code subscription               | **Default.** No API key; strips `ANTHROPIC_*` env. Model selectable (auto-tiered by default).            |
+| `codex_cli`  | Codex subscription                     | No API key. Model selectable; defaults to your Codex config.                                             |
+| `openai`     | BYOK — any OpenAI-compatible endpoint  | `base_url` + `api_key` + `model`. Works with OpenAI, DeepSeek, Gemini, Groq, OpenRouter, Ollama, LM Studio, vLLM… |
 
-CLI 後端會透過你機器上已登入的 CLI 呼叫對應 provider；BYOK 會呼叫你設定的 OpenAI-compatible endpoint。Jobsmith 不提供 hosted backend，也不把資料送到專案作者的伺服器。BYOK 金鑰只寫進你本機的 `.env`。另有 API key 後端（`anthropic`）供自架或 CI 使用。
+CLI backends call the corresponding provider through the logged-in CLI on your machine. BYOK calls the OpenAI-compatible endpoint you configure. Jobsmith does not operate a hosted backend or send your data to the project maintainer's server. BYOK credentials are written only to your local `.env`. An API-key backend (`anthropic`) also exists for self-hosting or CI.
 
-## 隱私與資料
+## Privacy and Data
 
-Jobsmith 會在本機保存履歷記憶、偏好、搜尋紀錄、投遞包、`.env` 與錯誤紀錄。你可以在 **設定 → 清除個人資料** 清掉履歷記憶、搜尋紀錄與投遞包；AI 後端設定會保留，避免重填 API key。
+Jobsmith stores profile memory, preferences, searches, generated packages, `.env`, and error logs locally. You can open **Settings → Clear personal data** to remove resume memory, searches, and generated package history; AI backend settings are kept so you do not need to re-enter API keys.
 
-執行 AI 功能時，履歷、職缺描述與 prompt 會送到你選擇的 AI 後端。請先閱讀 [隱私與資料處理](docs/PRIVACY.md)。
+When you run AI features, your résumé, job descriptions, and prompts are sent to the AI backend you selected. Read [Privacy and Data Handling](docs/PRIVACY.md) before using the app with sensitive data.
 
-## 系統架構
+## Architecture
 
 ```
-React SPA (Vite)  ──HTTP · SSE · 輪詢──►  FastAPI
-                                          │
-                  ┌───────────────────────┼───────────────────────┐
-                  ▼                       ▼                      ▼
-        LangGraph StateGraph         職缺來源              App SQLite
-        (每個背景產生一個、各自         104 / Yourator /     (投遞包＋狀態
-         記憶體 checkpointer、可平行)   LinkedIn / Cake       進行中→待審→已核可、
-                  │                                          記憶、搜尋)
+React SPA (Vite)  ──HTTP · SSE · poll──►  FastAPI
+                                            │
+                  ┌─────────────────────────┼────────────────────────┐
+                  ▼                         ▼                       ▼
+        LangGraph StateGraph           Job sources             App SQLite
+        (one per background run,       104 / Yourator /        (packages w/ status
+         own in-memory checkpoint,     LinkedIn / Cake          進行中→待審→已核可,
+         runs in parallel)                                      memory, searches)
+                  │
                   ▼
-          可切換的 LLM 後端
+          Pluggable LLM backend
           claude_cli · codex_cli · openai (BYOK)
 ```
 
-- **背景產生**：每次「產生投遞包」都開一個獨立的 LangGraph `StateGraph` ＋私有記憶體 checkpointer，丟到小型執行緒池跑——所以可**平行**、且不受瀏覽器斷線（重新整理／切頁）影響；前端**輪詢** `/api/run/events` 看即時進度，跑完寫進應用層資料庫。關掉分頁也不會中斷。
-- **自動找職缺**以 **Server-Sent Events** 邊搜、邊評、邊串流回瀏覽器。
-- 應用層 SQLite 存放投遞包（含生命週期狀態：進行中 → 待審 → 已核可）、使用者記憶與搜尋紀錄；在「我的投遞包」核可。_（獨立的 CLI 仍保留可續跑、檔案型的人工核可關卡：`interrupt()` / `Command(resume=…)`。）_
-- CLI 後端下模型自動分層：解析用 **haiku**、匹配／生成用 **sonnet**、深思（Critic/Supervisor）用 **opus**（可於各後端覆寫）。
+- **Background generation:** each *Generate* spins up its own LangGraph `StateGraph` with a private in-memory checkpointer, run on a small thread pool — so jobs run **in parallel** and survive client disconnects (refresh / navigation). The browser **polls** `/api/run/events` for live progress; the finished package is written to the app database. This decouples the run from the HTTP request — closing the tab doesn't stop it.
+- **Job search** streams results to the browser over **Server-Sent Events** as each source returns and each job is scored.
+- An application-level SQLite database holds packages with a lifecycle status (in-progress → pending review → approved), user memory, and saved searches; you review and approve in **My packages**. _(The standalone CLI still uses a resumable, file-backed human-approval gate via `interrupt()` / `Command(resume=…)`.)_
+- On the CLI backends, models are tiered automatically: **haiku** for extraction, **sonnet** for matching/generation, **opus** for the Critic/Supervisor (overridable per backend).
 
-## 成效評測
+## Evaluation
 
-Supervisor 反思迴圈（Critic → 重寫未過文件 → 再評）到底有沒有提升品質？用 5 組職缺／履歷的 golden set，分別在反思**關**（不重寫）與**開**兩種設定下跑，比較 Critic 分數：
+Does the Supervisor reflection loop (Critic → revise un-passed documents → re-critique) actually improve output quality? A small golden set of 5 job/résumé pairs is run with reflection **off** (no revisions) and **on**, and the resulting Critic scores are compared:
 
 <!-- EVAL:START -->
-| 反思 | Critic 通過率 | 平均品質分數 |
-| ---- | ------------- | ------------ |
-| 關   | 60%（3/5）    | 85.6         |
-| **開** | **100%（5/5）** | **87.5**   |
+| Reflection | Critic pass rate | Mean quality score |
+| ---------- | ---------------- | ------------------ |
+| Off        | 60% (3/5)        | 85.6               |
+| **On**     | **100% (5/5)**   | **87.5**           |
 
-反思讓 Critic 通過率提升 **+40 個百分點**（60% → 100%）、平均品質 **+1.9**（85.6 → 87.5）。關閉反思時的兩個失敗案例，都是求職信出現**未經查證的公司事實**或**履歷未支持的經歷宣稱**——正是 Critic → 重寫迴圈會抓出來的問題。_（單次 harness 執行；LLM 呼叫非確定性，實際數字每次略有不同。）_
+Reflection lifts the Critic pass rate by **+40pp** (60% → 100%) and mean quality by **+1.9** (85.6 → 87.5) across the 5 golden cases. Both "off" failures were cover letters making **unverified company claims** or an **unsupported experience claim** — exactly what the Critic → revise loop catches. _(One harness run; LLM calls are non-deterministic, so exact numbers vary run to run.)_
 <!-- EVAL:END -->
 
 ```bash
-python -m app.evals.harness     # 對每個 golden 案例跑整張 graph，寫入 app/evals/results.json
+python -m app.evals.harness     # runs the graph on each golden case, writes app/evals/results.json
 ```
 
-彙整用的 `summarize()` 是純函式、有獨立單元測試，因此聚合邏輯不受（非確定性的）LLM 呼叫影響、可單獨驗證。
+The `summarize()` step is a pure function with its own unit tests, so the aggregation logic is verified independently of the (non-deterministic) LLM calls.
 
-## 技術棧
+## Tech Stack
 
-| 層級     | 技術                                                                       |
+| Layer    | Technologies                                                               |
 | -------- | -------------------------------------------------------------------------- |
-| 後端     | Python、FastAPI、LangGraph、LangChain、Pydantic v2、SQLite、BeautifulSoup   |
-| 前端     | React 19、TypeScript、Vite、Tailwind CSS、lucide-react                      |
-| LLM      | Claude Code CLI / Codex CLI（本機）· 任何 OpenAI 相容端點（BYOK）          |
-| 桌面     | pywebview（原生視窗）· PyInstaller（單檔 `.exe` / unsigned `.app`，macOS 以 `.dmg` 發佈） |
+| Backend  | Python, FastAPI, LangGraph, LangChain, Pydantic v2, SQLite, BeautifulSoup  |
+| Frontend | React 19, TypeScript, Vite, Tailwind CSS, lucide-react                     |
+| LLM      | Claude Code CLI / Codex CLI (local) · any OpenAI-compatible endpoint (BYOK) |
+| Desktop  | pywebview (native window) · PyInstaller (single-file `.exe` / unsigned `.app`, distributed as `.dmg` on macOS) |
 
-## 專案結構
+## Project Structure
 
 ```
 app/
-  agents/     # 履歷健檢、職缺搜尋、公司情報、文件對話、面試模擬…
-  sources/    # 104 / Yourator / LinkedIn / Cake 搜尋 + registry + 縣市對應
-  store/      # 應用層 SQLite：歷史、記憶、搜尋紀錄
-  intake/     # 履歷／JD 解析與抓取
-  export/     # Word（.docx）匯出
-  graph.py    # LangGraph StateGraph（代理 + 人工核可）
-  server.py   # FastAPI + SSE 端點
-  llm.py      # 可切換 LLM 後端
-frontend/     # Vite + React + TS + Tailwind 前端
-tests/        # pytest 測試
-desktop.py    # 原生視窗啟動器      jobsmith.spec / jobsmith-macos.spec  # PyInstaller 打包
+  agents/     # résumé eval, job search, company research, refine chat, interview sim, …
+  sources/    # 104 / Yourator / LinkedIn / Cake search + registry + region map
+  store/      # app-level SQLite: history, memory, searches
+  intake/     # résumé/JD parsing and fetching
+  export/     # Word (.docx) export
+  graph.py    # LangGraph StateGraph (agents + human gate)
+  server.py   # FastAPI + SSE endpoints
+  llm.py      # pluggable LLM backend resolution
+frontend/     # Vite + React + TS + Tailwind SPA
+tests/        # pytest suite
+desktop.py    # native-window launcher    jobsmith.spec / jobsmith-macos.spec  # PyInstaller build
 ```
 
-## 測試
+## Testing
 
 ```bash
-pytest                         # 單元/整合測試（預設略過 live API 測試）
-pytest -m live                 # 含真打 API 的測試
-cd frontend && npm run lint    # 前端 lint
-cd frontend && npm run build   # 型別檢查 + 正式建置
+pytest                         # unit/integration suite (live API tests skipped by default)
+pytest -m live                 # include tests that call the real API
+cd frontend && npm run lint    # frontend lint
+cd frontend && npm run build   # type-check + production build
 ```
 
 ## Roadmap
 
-- [x] 單檔 Windows 桌面 App（PyInstaller）
+- [x] Single-file Windows desktop app (PyInstaller)
 - [x] unsigned macOS `.dmg` GitHub Actions build
-- [x] BYOK——任何 OpenAI 相容後端
-- [x] 背景、可平行、重新整理不中斷的投遞包產生
-- [ ] macOS 簽章與 notarization
-- [ ] Linux 版本
-- [ ] 更多職缺來源
+- [x] BYOK — any OpenAI-compatible backend
+- [x] Background, refresh-proof package generation with parallel runs
+- [ ] macOS signing and notarization
+- [ ] Linux builds
+- [ ] More job sources
 
-## 貢獻
+## Contributing
 
-歡迎 issue 與 pull request。較大的變更請先開 issue 討論方向。提交前請跑 `pytest`、`npm run lint` 與 `npm run build`。發佈 Windows `.exe` 前請照 [Release Checklist](docs/RELEASE_CHECKLIST.md) 做一次乾淨環境 smoke test。
+Issues and pull requests are welcome. For non-trivial changes, please open an issue first to discuss the approach. Run `pytest`, `npm run lint`, and `npm run build` before submitting. Before publishing a Windows `.exe`, run the clean-environment smoke test in the [Release Checklist](docs/RELEASE_CHECKLIST.md).
 
-## 免責聲明
+## Disclaimer
 
-本專案僅供**個人、教育與研究用途**，以低頻方式查詢 104 / Yourator / LinkedIn / Cake 的公開職缺，協助個別求職者。使用者需自行遵守各網站的服務條款與 `robots.txt`，**請勿**用於大量爬取或商業性資料蒐集。軟體按「現狀」提供，不附任何擔保。AI 生成內容（履歷、求職信、公司情報）可能有誤，使用前請務必自行檢視。
+This project is for **personal, educational, and research use**. It queries public job listings from 104 / Yourator / LinkedIn / Cake at low frequency to help an individual job seeker. You are responsible for complying with each site's Terms of Service and `robots.txt`; do **not** use it for bulk scraping or commercial data harvesting. The software is provided "as is", without warranty of any kind. LLM-generated content (résumés, cover letters, company research) may contain inaccuracies — always review before use.
 
-## 授權
+## License
 
-採用 [Apache License 2.0](LICENSE)。
+Released under the [Apache License 2.0](LICENSE).
