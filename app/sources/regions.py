@@ -51,6 +51,14 @@ def area_codes(keys: list[str]) -> list[str]:
     return out
 
 
+def linkedin_location(keys: list[str]) -> str:
+    """選定地區 key → LinkedIn location 字串；空選或未知 key → 空字串（不限地區）。"""
+    if not keys:
+        return ""
+    r = _BY_KEY.get(keys[0])
+    return r["key"] if r else ""
+
+
 def match_location(location: str | None, keys: list[str]) -> bool:
     """結果端：job location 是否落在選定縣市（任一別名子字串命中）。
 

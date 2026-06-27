@@ -416,6 +416,7 @@ def jobs_auto(
     pages = max(1, min(5, pages))
     region_keys = regions.parse_keys(region)
     area = regions.area_codes(region_keys)
+    li_location = regions.linkedin_location(region_keys)
     text, text_error = _resume_text_from_request(file, resume_text)
     posted_profile, profile_error = (None, None) if text.strip() else _profile_from_json(profile_json)
     company_list = _parse_companies(companies)
@@ -465,7 +466,7 @@ def jobs_auto(
             for q in queries[:3]:
                 token.check()
                 yield _sse({"type": "progress", "step": "search", "message": f"搜尋「{q}」中…"})
-                for res in search_all(q, limit=15, pages=pages, area=area):
+                for res in search_all(q, limit=15, pages=pages, area=area, location=li_location):
                     token.check()
                     # 104 已於來源端用 area 篩過；其餘來源在結果端依 location 過濾，地區一致生效。
                     kept = [j for j in res.jobs
@@ -497,9 +498,8 @@ def jobs_auto(
                 token.check()
                 matches.extend(batch)
                 yield _sse({"type": "ranked_batch", "data": [m.model_dump() for m in batch]})
-            li_loc = f"{region_keys[0]}, Taiwan" if region_keys else "Taiwan"
             yield _sse({"type": "linkedin",
-                        "url": linkedin_search_url(queries[0] if queries else "", li_loc)})
+                        "url": linkedin_search_url(queries[0] if queries else "", li_location)})
 
             # ② 使用者指定的公司開缺：與 AI 搜尋『分開』收集、分開排序、分開顯示，
             # 避免低適配的公司職缺佔據 AI 推薦名單前段、又吃掉排序名額。

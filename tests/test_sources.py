@@ -275,9 +275,13 @@ def test_all_real_sources_accept_area_param():
 
 def test_linkedin_search_url():
     from app.sources.registry import linkedin_search_url
+    # No location → global search, no location param in URL
     url = linkedin_search_url("AI 工程師")
     assert url.startswith("https://www.linkedin.com/jobs/search/")
-    assert "Taiwan" in url
+    assert "location" not in url
+    # With explicit location → appended as query param
+    url_de = linkedin_search_url("software engineer", "Germany")
+    assert "location=Germany" in url_de
 
 
 def test_regions_parse_and_codes():
