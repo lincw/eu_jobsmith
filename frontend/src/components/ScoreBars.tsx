@@ -1,15 +1,19 @@
 import { useEffect, useState } from "react"
-
-const LABELS: Record<string, string> = {
-  clarity_score: "表達清晰度", impact_score: "量化成果", ats_keyword_score: "ATS 關鍵字",
-  localization_score: "台灣慣例", completeness_score: "完整度",
-}
+import { useTranslation } from "react-i18next"
 
 export function ScoreBars({ scores }: { scores: Record<string, number> }) {
+  const { t } = useTranslation()
+  const LABELS: Record<string, string> = {
+    clarity_score: t("score.clarity", "表達清晰度"),
+    impact_score: t("score.impact", "量化成果"),
+    ats_keyword_score: t("score.ats", "ATS 關鍵字"),
+    localization_score: t("score.localization", "歐洲慣例"),
+    completeness_score: t("score.completeness", "完整度"),
+  }
   const [on, setOn] = useState(false)
   useEffect(() => {
-    const t = requestAnimationFrame(() => setOn(true))
-    return () => cancelAnimationFrame(t)
+    const timer = requestAnimationFrame(() => setOn(true))
+    return () => cancelAnimationFrame(timer)
   }, [])
   return (
     <div className="space-y-3">

@@ -14,9 +14,9 @@ STRUCTURE_SYSTEM = (
 )
 
 EVAL_SYSTEM = (
-    "你是資深台灣科技業招募顧問暨履歷健檢專家。請依台灣求職與 ATS 慣例，對這份履歷評分"
+    "你是資深歐洲/德國科技業招募顧問暨履歷健檢專家。請依歐盟/德國求職與 ATS 慣例，對這份履歷評分"
     "（每項 0-100）：整體(overall_score)、表達清晰度(clarity_score)、量化成果(impact_score)、"
-    "ATS 關鍵字涵蓋(ats_keyword_score)、台灣履歷慣例符合度(localization_score)、完整度(completeness_score)。"
+    "ATS 關鍵字涵蓋(ats_keyword_score)、歐盟/德國履歷慣例符合度(localization_score)、完整度(completeness_score)。"
     "另外提供：一段總評(summary)、優點清單(strengths)、問題清單(issues，每項含 severity=high/medium/low、"
     "area 所在區塊、problem 問題、fix 可照做的具體修正)、以及 2-4 個改寫前後對照範例(rewrite_examples)。"
     "務實具體、不空泛，不要捏造未提供的經歷。全程使用繁體中文。"
@@ -227,7 +227,7 @@ def evaluate_resume(resume_text: str, profile: Profile, lang: str = "zh-TW") -> 
         f"【履歷全文】\n{resume_text}\n\n"
         f"【已結構化資料】\n{profile.model_dump_json(indent=2)}"
     )
-    lang_instruction = "全程使用繁體中文。" if lang == "zh-TW" else "Please output the entire report in English."
+    lang_instruction = "全程使用繁體中文。" if not lang.startswith("en") else "Please output the entire report in English."
     return llm.invoke([("system", EVAL_SYSTEM.replace("全程使用繁體中文。", lang_instruction)), ("human", human)])
 
 

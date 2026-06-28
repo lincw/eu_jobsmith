@@ -10,7 +10,7 @@ import { EmptyState } from "../ui/EmptyState"
 import { ScoreRing } from "../components/ScoreRing"
 import {
   MessagesSquare, CheckCircle2, AlertTriangle, RefreshCw, ArrowRight, Archive, Loader2, X,
-  UserRound, XCircle,
+  UserRound, XCircle, Mic, MicOff,
 } from "../ui/icons"
 
 interface PkgPick {
@@ -48,7 +48,7 @@ export function InterviewView(
   { active, activeProfile, seed }:
   { active?: boolean; activeProfile?: CandidateProfile | null; seed?: Seed | null },
 ) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [sessions, setSessions] = useState<Session[]>([])
   const [currentKey, setCurrentKey] = useState<string | null>(null)
   const [packages, setPackages] = useState<PkgPick[]>([])
@@ -56,8 +56,49 @@ export function InterviewView(
   const taskRefs = useRef<Record<string, { taskId: string; ctrl: AbortController }>>({})
 
   const cur = sessions.find((s) => s.key === currentKey) || null
-  const patch = (key: string, p: Partial<Session>) =>
+  function patch(key: string, p: Partial<Session>) {
     setSessions((ss) => ss.map((s) => (s.key === key ? { ...s, ...p } : s)))
+  }
+
+  const [listening, setListening] = useState(false)
+  const recognitionRef = useRef<any>(null)
+
+  function toggleListening(curAns: string) {
+    if (listening) {
+      recognitionRef.current?.stop()
+      setListening(false)
+      return
+    }
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    if (!SpeechRecognition) {
+      alert(t("interview.speech_not_supported", "Your browser does not support voice input. (Try Chrome or Edge)"))
+      return
+    }
+    const rec = new SpeechRecognition()
+    rec.lang = i18n.language.startsWith("zh") ? "zh-TW" : "en-US"
+    rec.continuous = true
+    rec.interimResults = true
+
+    let finalTranscript = curAns || ""
+
+    rec.onresult = (e: any) => {
+      let interim = ""
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) {
+          finalTranscript += e.results[i][0].transcript
+        } else {
+          interim += e.results[i][0].transcript
+        }
+      }
+      setAnswer(finalTranscript + interim)
+    }
+    rec.onerror = () => setListening(false)
+    rec.onend = () => setListening(false)
+
+    rec.start()
+    recognitionRef.current = rec
+    setListening(true)
+  }
 
   function startTask(key: string, prefix: string) {
     const previous = taskRefs.current[key]
@@ -107,7 +148,7 @@ export function InterviewView(
       const r = await fetch("/api/interview/start", {
         method: "POST", headers: { "Content-Type": "application/json" },
         signal: ctrl.signal,
-        body: JSON.stringify({ jd_text: jd, profile, task_id: taskId }),
+        body: JSON.stringify({ jd_text: jd, profile, task_id: taskId, lang: i18n.language.startsWith("zh") ? "zh" : "en" }),
       })
       const d = await r.json()
       if (!r.ok) { patch(key, { loading: false, error: d.error || t("common.start_failed", "啟動失敗") }); return }
@@ -176,6 +217,7 @@ export function InterviewView(
         body: JSON.stringify({
           jd_text: cur.jd, question: q.question, answer: cur.answer,
           profile: cur.profile, task_id: taskId,
+          lang: i18n.language.startsWith("zh") ? "zh" : "en"
         }),
       })
       const d = await r.json()
@@ -211,6 +253,7 @@ export function InterviewView(
           jd_text: cur.jd,
           transcript: cur.transcript.map((t) => ({ question: t.question, answer: t.answer })),
           task_id: taskId,
+          lang: i18n.language.startsWith("zh") ? "zh" : "en"
         }),
       })
       const d = await r.json()
@@ -419,12 +462,23 @@ export function InterviewView(
 
       {!cur.feedback ? (
         <Card className="p-5">
-          <textarea
+            <textarea
             className="w-full border border-slate-300 rounded-lg p-3 text-sm h-36 focus:outline-none focus:ring-2 focus:ring-brand-200"
             placeholder={t("interview.answer_placeholder", "輸入你的回答…")} value={cur.answer} onChange={(e) => setAnswer(e.target.value)} />
-          <div className="mt-3">
-            <Button onClick={submitAnswer} loading={cur.busy} disabled={!cur.answer.trim()} icon={CheckCircle2}>{t("interview.submit_answer", "送出回答")}</Button>
-            {cur.busy && <Button variant="danger" icon={XCircle} onClick={() => stopSessionTask(cur.key)} className="ml-2">{t("common.stop", "停止")}</Button>}
+          <div className="mt-3 flex items-center justify-between">
+            <div>
+              <Button onClick={submitAnswer} loading={cur.busy} disabled={!cur.answer.trim()} icon={CheckCircle2}>{t("interview.submit_answer", "送出回答")}</Button>
+              {cur.busy && <Button variant="danger" icon={XCircle} onClick={() => stopSessionTask(cur.key)} className="ml-2">{t("common.stop", "停止")}</Button>}
+            </div>
+            <Button
+              variant={listening ? "danger" : "secondary"}
+              icon={listening ? MicOff : Mic}
+              onClick={() => toggleListening(cur!.answer)}
+              disabled={cur.busy}
+              className={listening ? "animate-pulse" : ""}
+            >
+              {listening ? t("interview.stop_listening", "停止錄音") : t("interview.start_listening", "語音輸入")}
+            </Button>
           </div>
         </Card>
       ) : (

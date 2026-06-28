@@ -13,7 +13,10 @@ interface SearchSummary {
 }
 interface SearchDetail {
   id: number; label: string; created_at: string; profile?: UserProfile | null;
-  payload: { jobs?: JobMatch[]; companyJobs?: JobMatch[] }
+  payload: {
+    jobs?: JobMatch[]; companyJobs?: JobMatch[];
+    params?: { pages?: number; regions?: string[]; customKeywords?: string; dateFilter?: string; workType?: string; }
+  }
 }
 
 function fmtDate(iso: string) {
@@ -65,7 +68,13 @@ export function SearchHistoryView(
           <ArrowLeft className="w-4 h-4" />{t("history.back_to_search", "回搜尋紀錄")}
         </button>
         <h2 className="font-semibold mb-1">{detail.label}</h2>
-        <p className="text-sm text-slate-500 mb-4">{fmtDate(detail.created_at)}</p>
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          <p className="text-sm text-slate-500">{fmtDate(detail.created_at)}</p>
+          {p.params?.customKeywords && <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded-md text-xs border border-slate-200">Keywords: {p.params.customKeywords}</span>}
+          {p.params?.regions && p.params.regions.length > 0 && <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded-md text-xs border border-slate-200">Regions: {p.params.regions.join(", ")}</span>}
+          {p.params?.dateFilter && <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded-md text-xs border border-slate-200">Date: {t("app.date_" + p.params.dateFilter, p.params.dateFilter)}</span>}
+          {p.params?.workType && <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded-md text-xs border border-slate-200">Work Type: {t("app.work_" + p.params.workType, p.params.workType)}</span>}
+        </div>
 
         {aiJobs.length > 0 && (
           <>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { useBackend, CLI_AGENTS } from "../lib/useBackend"
 import type { ByokForm } from "../lib/useBackend"
 import { Cpu, KeyRound, RefreshCw, CheckCircle2, XCircle, Loader2, X, CircleDot, Circle } from "../ui/icons"
@@ -7,6 +8,7 @@ import { Cpu, KeyRound, RefreshCw, CheckCircle2, XCircle, Loader2, X, CircleDot,
 // 本機 CLI：掃描 PATH 偵測各 CLI、選代理、選模型（用時才選）、測試（不綁模型）。
 export function ExecutionSettings({ onClose }: { onClose: () => void }) {
   const be = useBackend()
+  const { t } = useTranslation()
   const [tab, setTab] = useState<"cli" | "byok">("cli")
   const [byok, setByok] = useState<ByokForm>({ base_url: "", api_key: "", model: "" })
   const [initFrom, setInitFrom] = useState<string | null>(null)
@@ -39,18 +41,18 @@ export function ExecutionSettings({ onClose }: { onClose: () => void }) {
             <X className="w-5 h-5" />
           </button>
         </div>
-        <p className="text-sm text-slate-500 mb-4">在本機 CLI 與 BYOK 之間選擇。BYOK 金鑰只寫進你本機的 .env，不會外傳。</p>
+        <p className="text-sm text-slate-500 mb-4">{t("backend.setting_desc", "在本機 CLI 與 BYOK 之間選擇。BYOK 金鑰只寫進你本機的 .env，不會外傳。")}</p>
 
         <div className="flex gap-1 bg-slate-100 rounded-xl p-1 mb-4">
-          <button type="button" onClick={() => setTab("cli")} className={tabBtn("cli")}>本機 CLI</button>
-          <button type="button" onClick={() => setTab("byok")} className={tabBtn("byok")}>BYOK</button>
+          <button type="button" onClick={() => setTab("cli")} className={tabBtn("cli")}>{t("backend.local_cli", "本機 CLI")}</button>
+          <button type="button" onClick={() => setTab("byok")} className={tabBtn("byok")}>{t("backend.byok", "自備 Key")}</button>
         </div>
 
         {tab === "cli" && (
           <div>
             <div className="flex items-start justify-between gap-3 mb-3">
               <div>
-                <p className="font-semibold text-sm text-slate-800">本機 CLI</p>
+                <p className="font-semibold text-sm text-slate-800">{t("backend.local_cli", "本機 CLI")}</p>
                 <p className="text-xs text-slate-500">透過掃描 PATH 自動偵測，選擇你希望使用的 CLI。</p>
               </div>
               <div className="flex items-center gap-2 shrink-0">

@@ -41,7 +41,7 @@ export interface CoverLetter {
 }
 export interface InterviewKit {
   technical_questions: string[]; behavioral_questions: string[];
-  taiwan_specific_questions: string[]; sample_answers: string[];
+  eu_specific_questions: string[]; sample_answers: string[];
   reverse_questions: string[]; company_focus_points: string[]; cautions: string[];
 }
 export interface CritiqueReport {

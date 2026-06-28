@@ -20,7 +20,7 @@ from docx.shared import Pt
 _INTERVIEW_SECTIONS = [
     ("技術題", "technical_questions"),
     ("行為題", "behavioral_questions"),
-    ("台灣特有題", "taiwan_specific_questions"),
+    ("歐洲特有題", "eu_specific_questions"),
     ("STAR 擬答", "sample_answers"),
     ("反向提問", "reverse_questions"),
     ("避雷提醒", "cautions"),

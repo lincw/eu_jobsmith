@@ -3,8 +3,8 @@ from app.llm import get_llm
 from app.models import CompanyBrief, InterviewKit, ParsedJob, Profile
 
 INTERVIEW_SYSTEM = (
-    "你是面試教練。請依職缺與求職者背景，準備面試包："
-    "技術題、行為題、台灣特有題（自傳、期望薪資、為什麼想加入）、"
+    "你是面試教練。請依歐洲與德國就業市場之職缺與求職者背景，準備面試包："
+    "技術題、行為題、歐洲特有題（簽證狀態、Notice Period、期望薪資等）、"
     "對應的 STAR 擬答、給求職者用的反向提問。"
     "若提供公司情報，請加入公司近況考點與避雷提醒（依紅旗）。"
 )

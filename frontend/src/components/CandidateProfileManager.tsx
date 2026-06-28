@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { useTranslation } from "react-i18next"
 import type { CandidateProfile, EditableProfile, Preferences, UserProfile } from "../types"
 import {
   editableProfileFromUserProfile,
@@ -18,10 +19,11 @@ function fmtDate(iso: string) {
 }
 
 function Meta({ label, value }: { label: string; value: string }) {
+  const { t } = useTranslation()
   return (
     <div>
       <dt className="text-xs text-slate-400">{label}</dt>
-      <dd className="text-sm text-slate-700 break-words">{value || "未設定"}</dd>
+      <dd className="text-sm text-slate-700 break-words">{value || t("profile.not_set", "未設定")}</dd>
     </div>
   )
 }
@@ -71,6 +73,7 @@ export function CandidateProfileManager(
     compact?: boolean
   },
 ) {
+  const { t } = useTranslation()
   const selectedId = profiles.some((p) => p.id === activeProfile?.id) ? activeProfile?.id : ""
 
   return (
@@ -78,13 +81,13 @@ export function CandidateProfileManager(
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h3 className="font-semibold flex items-center gap-2">
-            <UserRound className="w-4 h-4 text-brand-600" />候選人 Profile
+            <UserRound className="w-4 h-4 text-brand-600" />{t("profile.title", "候選人 Profile")}
           </h3>
           <p className="text-sm text-slate-500">
-            儲存後可跨 session 選用；重新開啟 App 不會自動套用，產出前仍需確認。
+            {t("profile.desc", "儲存後可跨 session 選用；重新開啟 App 不會自動套用，產出前仍需確認。")}
           </p>
         </div>
-        {activeProfile && <Badge tone="brand">目前使用</Badge>}
+        {activeProfile && <Badge tone="brand">{t("profile.active", "目前使用")}</Badge>}
       </div>
 
       {activeProfile ? (
@@ -99,14 +102,14 @@ export function CandidateProfileManager(
         />
       ) : (
         <div className="border border-dashed border-slate-300 rounded-lg p-4 bg-slate-50 text-sm text-slate-600">
-          目前未選 Profile。手動選擇已儲存 Profile，或先到「自動找職缺 / 履歷健檢」提供履歷。
+          {t("profile.none", "目前未選 Profile。手動選擇已儲存 Profile，或先到「自動找職缺 / 履歷健檢」提供履歷。")}
         </div>
       )}
 
       {profiles.length > 0 && (
         <div className="space-y-2">
           <label className="text-sm font-medium text-slate-700 flex items-center gap-1.5" htmlFor="candidate-profile-select">
-            <UsersRound className="w-4 h-4 text-slate-400" />選擇已儲存 Profile
+            <UsersRound className="w-4 h-4 text-slate-400" />{t("profile.select_saved", "選擇已儲存 Profile")}
           </label>
           <select
             id="candidate-profile-select"
@@ -117,7 +120,7 @@ export function CandidateProfileManager(
             }}
             className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-200"
           >
-            <option value="">不自動套用，請手動選擇</option>
+            <option value="">{t("profile.select_placeholder", "不自動套用，請手動選擇")}</option>
             {profiles.map((p) => (
               <option key={p.id} value={p.id}>{p.label}</option>
             ))}
@@ -133,7 +136,7 @@ export function CandidateProfileManager(
                 <p className="font-medium text-sm text-slate-900 truncate">{p.label}</p>
                 <p className="text-xs text-slate-500 truncate">{profileSummary(p.profile)}</p>
               </div>
-              <Button variant="secondary" size="sm" onClick={() => onSelectProfile(p)}>使用</Button>
+              <Button variant="secondary" size="sm" onClick={() => onSelectProfile(p)}>{t("profile.use", "使用")}</Button>
               {onDeleteProfile && (
                 <button
                   type="button"
@@ -167,6 +170,7 @@ function ActiveProfileCard(
     onClearActiveProfile?: () => void
   },
 ) {
+  const { t } = useTranslation()
   const [label, setLabel] = useState(activeProfile.label || "")
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState<EditableProfile>(() => editableProfileFromUserProfile(activeProfile.profile))
@@ -205,17 +209,17 @@ function ActiveProfileCard(
           <p className="text-sm text-slate-600 mt-0.5">{profileSummary(activeProfile.profile)}</p>
         </div>
         {activeIsSaved && <span className="text-xs text-emerald-700 inline-flex items-center gap-1">
-          <CheckCircle2 className="w-3.5 h-3.5" />已儲存
+          <CheckCircle2 className="w-3.5 h-3.5" />{t("profile.saved", "已儲存")}
         </span>}
       </div>
       {editing ? (
         <div className="mt-4 space-y-3">
           <div className="grid sm:grid-cols-2 gap-3">
-            <EditField label="姓名" value={draft.name} onChange={(v) => updateDraft("name", v)} placeholder="例：王予辰" />
-            <EditField label="年資" value={draft.years_experience} onChange={(v) => updateDraft("years_experience", v)} placeholder="例：3" />
+            <EditField label={t("profile.name", "姓名")} value={draft.name} onChange={(v) => updateDraft("name", v)} placeholder="例：王予辰" />
+            <EditField label={t("profile.years_exp", "年資")} value={draft.years_experience} onChange={(v) => updateDraft("years_experience", v)} placeholder="例：3" />
           </div>
           <EditField
-            label="定位摘要"
+            label={t("profile.summary", "定位摘要")}
             value={draft.summary}
             onChange={(v) => updateDraft("summary", v)}
             multiline
@@ -223,38 +227,38 @@ function ActiveProfileCard(
           />
           <div className="grid sm:grid-cols-2 gap-3">
             <EditField
-              label="技能（可用換行、頓號或逗號分隔）"
+              label={t("profile.skills", "技能（可用換行、頓號或逗號分隔）")}
               value={draft.skills}
               onChange={(v) => updateDraft("skills", v)}
               multiline
             />
             <EditField
-              label="目標職稱（可用換行、頓號或逗號分隔）"
+              label={t("profile.preferred_roles", "目標職稱（可用換行、頓號或逗號分隔）")}
               value={draft.preferred_roles}
               onChange={(v) => updateDraft("preferred_roles", v)}
               multiline
             />
           </div>
-          <EditField label="學歷" value={draft.education} onChange={(v) => updateDraft("education", v)} />
+          <EditField label={t("profile.education", "學歷")} value={draft.education} onChange={(v) => updateDraft("education", v)} />
           <EditField
-            label="經歷重點（可用換行、頓號或逗號分隔）"
+            label={t("profile.experiences", "經歷重點（可用換行、頓號或逗號分隔）")}
             value={draft.experiences}
             onChange={(v) => updateDraft("experiences", v)}
             multiline
           />
           <div className="flex flex-wrap gap-2">
-            <Button icon={Check} onClick={applyEdit}>套用修改</Button>
-            <Button variant="secondary" icon={X} onClick={() => setEditing(false)}>取消</Button>
+            <Button icon={Check} onClick={applyEdit}>{t("profile.apply_edit", "套用修改")}</Button>
+            <Button variant="secondary" icon={X} onClick={() => setEditing(false)}>{t("profile.cancel_edit", "取消")}</Button>
           </div>
         </div>
       ) : (
         <dl className="grid sm:grid-cols-2 gap-3 mt-4">
-          <Meta label="Profile 名稱" value={activeProfile.label} />
-          <Meta label="履歷" value={activeProfile.resumeLabel || "已解析履歷"} />
-          <Meta label="目標職稱" value={roles.join("、")} />
-          <Meta label="想強調技能" value={(preferences?.emphasize_skills?.length ? preferences.emphasize_skills : skills).join("、")} />
-          <Meta label="語氣" value={preferences?.tone || ""} />
-          <Meta label="更新時間" value={fmtDate(activeProfile.updatedAt)} />
+          <Meta label={t("profile.name_label", "Profile 名稱")} value={activeProfile.label} />
+          <Meta label={t("profile.resume", "履歷")} value={activeProfile.resumeLabel || t("profile.parsed_resume", "已解析履歷")} />
+          <Meta label={t("profile.target_roles", "目標職稱")} value={roles.join("、")} />
+          <Meta label={t("profile.emphasized_skills", "想強調技能")} value={(preferences?.emphasize_skills?.length ? preferences.emphasize_skills : skills).join("、")} />
+          <Meta label={t("profile.tone", "語氣")} value={preferences?.tone || ""} />
+          <Meta label={t("profile.updated_at", "更新時間")} value={fmtDate(activeProfile.updatedAt)} />
         </dl>
       )}
       {onSaveActiveProfile && (
@@ -262,18 +266,18 @@ function ActiveProfileCard(
           <input
             value={label}
             onChange={(e) => { setLabel(e.target.value); setSaved(false) }}
-            aria-label="Profile 名稱"
+            aria-label={t("profile.name_label", "Profile 名稱")}
             className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-200"
-            placeholder="Profile 名稱"
+            placeholder={t("profile.name_label", "Profile 名稱")}
           />
           <Button icon={Save} onClick={saveActive}>
-            {activeIsSaved ? "更新 Profile" : "儲存為 Profile"}
+            {activeIsSaved ? t("profile.update_btn", "更新 Profile") : t("profile.save_btn", "儲存為 Profile")}
           </Button>
           {onUpdateActiveProfile && !editing && (
-            <Button variant="secondary" icon={Pencil} onClick={startEdit}>編輯 Profile</Button>
+            <Button variant="secondary" icon={Pencil} onClick={startEdit}>{t("profile.edit_btn", "編輯 Profile")}</Button>
           )}
           {onClearActiveProfile && (
-            <Button variant="secondary" icon={X} onClick={onClearActiveProfile}>不使用 Profile</Button>
+            <Button variant="secondary" icon={X} onClick={onClearActiveProfile}>{t("profile.clear_btn", "不使用 Profile")}</Button>
           )}
         </div>
       )}

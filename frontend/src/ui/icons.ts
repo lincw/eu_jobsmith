@@ -18,6 +18,8 @@ export {
   RefreshCw,
   Pencil,
   Download,
+  Mic,
+  MicOff,
   FileDown,
   Printer,
   Upload,

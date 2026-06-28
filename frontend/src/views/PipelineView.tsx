@@ -44,12 +44,13 @@ export function PipelineView(
     onClearActiveProfile: () => void
   },
 ) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [jd, setJd] = useState("")
   const [manualJd, setManualJd] = useState("")
   const [pendingJd, setPendingJd] = useState("")
   const [phase, setPhase] = useState<Phase>("idle")
   const [status, setStatus] = useState("")
+  const [packageId, setPackageId] = useState<number | null>(null)
   const [done, setDone] = useState<string[]>([])
   const [state, setState] = useState<PipelineState>({})
   const [revisions, setRevisions] = useState(0)
@@ -65,7 +66,7 @@ export function PipelineView(
 
   function resetView() {
     setError(""); setNodeErrors([]); setProfileWarning(""); setTelemetry([])
-    setDone([]); setState({}); setRevisions(0); setPage(0)
+    setDone([]); setState({}); setRevisions(0); setPage(0); setPackageId(null)
   }
 
   function applyEvent(ev: RunEvent) {
@@ -111,8 +112,9 @@ export function PipelineView(
   }
 
   // 輪詢某次背景產生的進度；done 或 found=false 即停。重新整理可從 since=0 重播全部。
-  function startPolling(threadId: string, packageId: number) {
+  function startPolling(threadId: string, pkgId: number) {
     stopPoll()
+    setPackageId(pkgId)
     poll.current = { thread: threadId, since: 0, timer: null }
     setPhase("running"); setStatus(t("pipeline.generating", "產生中…"))
     let failures = 0
@@ -121,7 +123,7 @@ export function PipelineView(
         const r = await fetch(`/api/run/events/${threadId}?since=${poll.current.since}`)
         const d = await r.json()
         failures = 0
-        if (!d.found) { await loadFromHistory(packageId); return }  // 已清理/伺服器重啟 → 改載歷史
+        if (!d.found) { await loadFromHistory(pkgId); return }  // 已清理/伺服器重啟 → 改載歷史
         const events: RunEvent[] = d.events || []
         poll.current.since += events.length
         events.forEach(applyEvent)
@@ -138,6 +140,7 @@ export function PipelineView(
 
   async function loadFromHistory(packageId: number) {
     stopPoll()
+    setPackageId(packageId)
     try {
       const d = await (await fetch(`/api/history/${packageId}`)).json()
       if (d && d.package) {
@@ -168,7 +171,7 @@ export function PipelineView(
     try {
       const r = await fetch("/api/run", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jd_text: jdText, profile: effectiveProfile, preferences: preferences ?? null }),
+        body: JSON.stringify({ jd_text: jdText, profile: effectiveProfile, preferences: preferences ?? null, lang: i18n.language }),
       })
       if (!r.ok) {
         const d = await r.json().catch(() => ({}))
@@ -225,12 +228,29 @@ export function PipelineView(
   useEffect(() => () => stopPoll(), [])
 
   // 成品分頁：右側一次只顯示一份（唯讀），用分頁標籤或上一頁/下一頁切換。
+  function updateState(updater: (s: Partial<PipelineState>) => Partial<PipelineState>) {
+    setState(prev => {
+      const next = updater(prev)
+      if (packageId) {
+        fetch(`/api/history/${packageId}`, {
+          method: "PUT", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(next)
+        }).catch(() => {})
+      }
+      return next
+    })
+  }
+
   const docFor = (key: string) => {
     switch (key) {
       case "match": return state.match_report ? <MatchCard m={state.match_report} /> : null
       case "company": return state.company_brief ? <CompanyCard c={state.company_brief} /> : null
-      case "resume": return state.tailored_resume ? <ResumeDoc r={state.tailored_resume} /> : null
-      case "cover": return state.cover_letter ? <CoverLetterDoc c={state.cover_letter} /> : null
+      case "resume": return state.tailored_resume ? <ResumeDoc r={state.tailored_resume}
+        onSummary={(v) => updateState(s => ({ ...s, tailored_resume: { ...s.tailored_resume!, summary: v } }))}
+        onBullets={(v) => updateState(s => ({ ...s, tailored_resume: { ...s.tailored_resume!, bullets: v.split('\n') } }))} /> : null
+      case "cover": return state.cover_letter ? <CoverLetterDoc c={state.cover_letter}
+        onSubject={(v) => updateState(s => ({ ...s, cover_letter: { ...s.cover_letter!, subject: v } }))}
+        onBody={(v) => updateState(s => ({ ...s, cover_letter: { ...s.cover_letter!, body: v } }))} /> : null
       case "interview": return state.interview_kit ? <InterviewKitDoc k={state.interview_kit} /> : null
       case "critique": return state.critique ? <CritiqueCard q={state.critique} /> : null
       default: return null

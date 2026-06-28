@@ -65,7 +65,7 @@ def format_output(state: dict, job_title: str) -> str:
             "=== 面試準備 ===",
             "技術題：" + _join(kit.technical_questions),
             "行為題：" + _join(kit.behavioral_questions),
-            "台灣特有題：" + _join(kit.taiwan_specific_questions),
+            "歐洲特有題：" + _join(kit.eu_specific_questions),
             "反向提問：" + _join(kit.reverse_questions),
             "避雷提醒：" + _join(kit.cautions),
         ]

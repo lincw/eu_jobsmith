@@ -184,7 +184,7 @@ export function InterviewKitDoc({ k }: { k: InterviewKit }) {
     <Section icon={MessageSquare} title="面試準備">
       <QList title="技術題" items={k.technical_questions} />
       <QList title="行為題" items={k.behavioral_questions} />
-      <QList title="台灣特有題" items={k.taiwan_specific_questions} />
+      <QList title="歐洲特有題" items={k.eu_specific_questions} />
       <QList title="STAR 擬答" items={k.sample_answers} />
       <QList title="反向提問" items={k.reverse_questions} />
       <QList title="避雷提醒" items={k.cautions} />

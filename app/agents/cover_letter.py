@@ -3,7 +3,7 @@ from app.llm import get_llm
 from app.models import CompanyBrief, CoverLetter, ParsedJob, Profile
 
 COVER_SYSTEM = (
-    "你是求職文案專家。請以台灣求職文化撰寫一封繁中求職信/自傳，"
+    "你是求職文案專家。請以台灣求職文化撰寫一封求職信/自傳，"
     "對應職缺需求、凸顯求職者的相關經歷。"
     "若提供了公司情報，請自然地引用真實公司事實（例如募資、產品、文化），"
     "並把引用到的事實列在 company_facts_used。沒有公司情報就不要杜撰。"

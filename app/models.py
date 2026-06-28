@@ -125,7 +125,7 @@ class InterviewKit(BaseModel):
     """⑤ 面試準備包。"""
     technical_questions: list[str] = Field(default_factory=list)
     behavioral_questions: list[str] = Field(default_factory=list)
-    taiwan_specific_questions: list[str] = Field(default_factory=list, description="自傳/期望薪資/為什麼想加入等")
+    eu_specific_questions: list[str] = Field(default_factory=list, description="簽證/期望薪資/Notice Period等")
     sample_answers: list[str] = Field(default_factory=list, description="STAR 擬答")
     reverse_questions: list[str] = Field(default_factory=list, description="反向提問")
     company_focus_points: list[str] = Field(default_factory=list, description="公司近況考點")
@@ -188,7 +188,7 @@ class ResumeAssessment(BaseModel):
     clarity_score: int = Field(ge=0, le=100, description="表達清晰度")
     impact_score: int = Field(ge=0, le=100, description="量化成果/影響力")
     ats_keyword_score: int = Field(ge=0, le=100, description="ATS 關鍵字涵蓋")
-    localization_score: int = Field(ge=0, le=100, description="台灣履歷慣例符合度")
+    localization_score: int = Field(ge=0, le=100, description="歐盟/德國履歷慣例符合度")
     completeness_score: int = Field(ge=0, le=100, description="完整度")
     summary: str = Field(description="一段總評")
     strengths: list[str] = Field(default_factory=list, description="優點清單")

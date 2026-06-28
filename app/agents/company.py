@@ -24,7 +24,7 @@ COMPANY_SYSTEM = (
 )
 
 COMPANY_GENERAL_SYSTEM = (
-    "你是熟悉台灣就業市場的企業情報分析師。目前沒有即時搜尋結果，"
+    "你是熟悉歐洲與德國就業市場的企業情報分析師。目前沒有即時搜尋結果，"
     "請僅依你已知的一般知識，謹慎地彙整這家公司的情報卡（規模、產業、"
     "可能的薪資範圍、文化、面試方向、可留意的紅旗）。"
     "若對某公司不確定，寧可在欄位留空，也不要編造具體數字或新聞；"
@@ -35,7 +35,7 @@ COMPANY_GENERAL_SYSTEM = (
 def _llm_only_brief(company_name: str) -> CompanyBrief:
     """無搜尋金鑰時，用模型一般知識產 brief（標記 data_limited + note，請自行查證）。"""
     try:
-        llm = get_llm("standard").with_structured_output(CompanyBrief)
+        llm = get_llm("deep").with_structured_output(CompanyBrief)
         brief = llm.invoke([("system", COMPANY_GENERAL_SYSTEM),
                             ("human", f"公司名稱：{company_name}")])
         brief.data_limited = True
@@ -52,7 +52,7 @@ def _cli_research_brief(company_name: str) -> CompanyBrief | None:
         brief = research_structured(
             CompanyBrief,
             [("system", COMPANY_RESEARCH_SYSTEM), ("human", f"公司名稱：{company_name}")],
-            tier="standard",
+            tier="deep",
         )
     except Exception:
         return None  # CLI 上網查證失敗 → 交回呼叫端降級（Tavily / 一般知識）
@@ -75,7 +75,7 @@ def research_company(company_name: str) -> CompanyBrief:
     if cli_brief is not None:
         return cli_brief
     try:
-        results = search_web(f"{company_name} 公司 評價 薪資 福利 面試")
+        results = search_web(f"{company_name} company overview reviews salary interview process")
     except Exception as exc:
         if "TAVILY_API_KEY" in str(exc):  # 未設金鑰 → LLM 一般知識，不再回空殼
             return _llm_only_brief(company_name)
@@ -89,5 +89,5 @@ def research_company(company_name: str) -> CompanyBrief:
         f"- {r['title']}\n{r['content']}\n來源: {r['url']}" for r in results
     )
     human = f"公司名稱：{company_name}\n\n公開搜尋結果：\n{context}"
-    llm = get_llm("standard").with_structured_output(CompanyBrief)
+    llm = get_llm("deep").with_structured_output(CompanyBrief)
     return llm.invoke([("system", COMPANY_SYSTEM), ("human", human)])

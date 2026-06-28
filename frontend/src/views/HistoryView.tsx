@@ -114,6 +114,18 @@ export function HistoryView(
     a.href = URL.createObjectURL(blob); a.download = t("history.download_name", "投遞包") + ".docx"; a.click(); URL.revokeObjectURL(a.href)
   }
 
+  function updatePkg(updater: (pkg: PackagePayload) => PackagePayload) {
+    setDetail((prev) => {
+      if (!prev) return prev
+      const newPkg = updater({ ...prev.package })
+      fetch(`/api/history/${prev.id}`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newPkg)
+      }).catch(() => {})
+      return { ...prev, package: newPkg }
+    })
+  }
+
   // ---- 詳情檢視 ----
   if (detail) {
     const p = detail.package || {}
@@ -150,8 +162,12 @@ export function HistoryView(
           )}
           {p.match_report && <MatchCard m={p.match_report} />}
           {p.company_brief && <CompanyCard c={p.company_brief} />}
-          {p.tailored_resume && <ResumeDoc r={p.tailored_resume} />}
-          {p.cover_letter && <CoverLetterDoc c={p.cover_letter} />}
+          {p.tailored_resume && <ResumeDoc r={p.tailored_resume}
+            onSummary={(v) => updatePkg(prev => ({ ...prev, tailored_resume: { ...prev.tailored_resume!, summary: v } }))}
+            onBullets={(v) => updatePkg(prev => ({ ...prev, tailored_resume: { ...prev.tailored_resume!, bullets: v.split('\n') } }))} />}
+          {p.cover_letter && <CoverLetterDoc c={p.cover_letter}
+            onSubject={(v) => updatePkg(prev => ({ ...prev, cover_letter: { ...prev.cover_letter!, subject: v } }))}
+            onBody={(v) => updatePkg(prev => ({ ...prev, cover_letter: { ...prev.cover_letter!, body: v } }))} />}
           {p.interview_kit && <InterviewKitDoc k={p.interview_kit} />}
           {p.critique && <CritiqueCard q={p.critique} />}
         </div>

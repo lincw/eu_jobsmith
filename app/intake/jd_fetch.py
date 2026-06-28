@@ -183,6 +183,8 @@ def fetch_jd(url: str) -> JDFetchResult:
     url = (url or "").strip()
     if not url.startswith(("http://", "https://")):
         raise JDFetchError("請輸入有效的網址（需以 http:// 或 https:// 開頭）。")
+    if "xing.com" in url or "linkedin.com" in url or "indeed.com" in url:
+        raise JDFetchError("該網站防爬機制嚴格，改貼 JD 文字或使用搜尋摘要。")
     m = _104_JOB.search(url)
     try:
         return _fetch_104(m.group(1)) if m else _fetch_generic(url)

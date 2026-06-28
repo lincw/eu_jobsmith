@@ -14,9 +14,9 @@ from app.models import (
 )
 
 _Q_SYSTEM = (
-    "你是資深技術面試官，熟悉台灣求職市場。請依職缺與求職者背景，設計一場面試的題目，"
-    "混合技術題、行為題與台灣特有題（自傳/期望薪資/為什麼想加入）。題目要具體、可作答，"
-    "由淺入深。每題標註 category（技術/行為/台灣特有）。"
+    "你是資深技術面試官，熟悉歐洲與德國求職市場。請依職缺與求職者背景，設計一場面試的題目，"
+    "混合技術題、行為題與歐洲特有題（簽證/期望薪資/Notice Period等）。題目要具體、可作答，"
+    "由淺入深。每題標註 category（技術/行為/歐洲特有）。"
 )
 _FB_SYSTEM = (
     "你是面試教練。針對求職者對某題的回答，給出建設性即時回饋："
@@ -44,8 +44,8 @@ def _fallback_questions(jd: str, profile: Profile, n: int) -> list[InterviewQues
         InterviewQuestion(category="技術", question="如果要接手這份 JD 的核心系統，你會如何拆解架構與風險？"),
         InterviewQuestion(category="行為", question="請描述一次你和不同角色協作、遇到分歧並完成交付的經驗。"),
         InterviewQuestion(category="行為", question="遇到時程很趕但品質不能降低時，你會如何取捨與溝通？"),
-        InterviewQuestion(category="台灣特有", question=f"你為什麼想應徵 {role}，以及你期待在前三個月交付什麼成果？"),
-        InterviewQuestion(category="台灣特有", question="你的期望薪資與可到職時間為何？請說明你的依據。"),
+        InterviewQuestion(category="歐洲特有", question=f"你為什麼想應徵 {role}，以及你期待在前三個月交付什麼成果？"),
+        InterviewQuestion(category="歐洲特有", question="你的期望薪資與可到職時間（Notice Period）為何？請說明你的依據。"),
     ]
     if jd and "rag" in jd.lower():
         questions.insert(1, InterviewQuestion(

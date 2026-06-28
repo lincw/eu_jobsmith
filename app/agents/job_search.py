@@ -118,7 +118,7 @@ def _profile_blob(profile: Profile) -> str:
     ])
 
 
-def _fallback_rank_jobs(profile: Profile, jobs: list[JobPosting], top_k: int | None = None) -> list[JobMatch]:
+def _fallback_rank_jobs(profile: Profile, jobs: list[JobPosting], top_k: int | None = None, lang: str = "zh") -> list[JobMatch]:
     """LLM 排序失敗時仍給使用者可用列表：以技能/職稱關鍵字重疊估分。"""
     have_skills = set(extract_skills(_profile_blob(profile)))
     raw_skills = [str(s).strip() for s in (profile.skills or []) if str(s).strip()]
@@ -134,7 +134,7 @@ def _fallback_rank_jobs(profile: Profile, jobs: list[JobPosting], top_k: int | N
         if not skill_hits and not raw_hits and not role_hits:
             score = 30
         gaps = sorted(job_skills - have_skills)[:6]
-        reason = "AI 排序暫時不可用，已改用本機技能與職稱關鍵字比對。"
+        reason = "AI 排序暫時不可用，已改用本機技能與職稱關鍵字比對。" if lang != "en" else "AI ranking unavailable. Fallback to keyword matching."
         matches.append(JobMatch(
             job=job,
             fit_score=min(90, score),
@@ -146,9 +146,9 @@ def _fallback_rank_jobs(profile: Profile, jobs: list[JobPosting], top_k: int | N
     return matches if top_k is None else matches[:top_k]
 
 
-def fallback_rank_jobs(profile: Profile, jobs: list[JobPosting], top_k: int | None = None) -> list[JobMatch]:
+def fallback_rank_jobs(profile: Profile, jobs: list[JobPosting], top_k: int | None = None, lang: str = "zh") -> list[JobMatch]:
     """Public fallback scorer for callers that need to recover from batch-level failures."""
-    return _fallback_rank_jobs(profile, jobs, top_k)
+    return _fallback_rank_jobs(profile, jobs, top_k, lang=lang)
 
 
 def rank_jobs(profile: Profile, jobs: list[JobPosting], top_k: int | None = None, lang: str = "zh") -> list[JobMatch]:
@@ -174,9 +174,9 @@ def rank_jobs(profile: Profile, jobs: list[JobPosting], top_k: int | None = None
     try:
         out = llm.invoke([("system", sys_prompt), ("human", human)])
     except Exception:
-        return _fallback_rank_jobs(profile, jobs + overflow, top_k)
+        return _fallback_rank_jobs(profile, jobs + overflow, top_k, lang=lang)
     if not out.rankings:
-        return _fallback_rank_jobs(profile, jobs + overflow, top_k)
+        return _fallback_rank_jobs(profile, jobs + overflow, top_k, lang=lang)
     by_idx = {r.index: r for r in out.rankings}
 
     matches: list[JobMatch] = []
@@ -186,9 +186,9 @@ def rank_jobs(profile: Profile, jobs: list[JobPosting], top_k: int | None = None
             matches.append(JobMatch(job=job, fit_score=r.fit_score,
                                     matched=r.matched, gaps=r.gaps, reason=r.reason))
         else:
-            matches.append(JobMatch(job=job, fit_score=0, reason="未評分"))
+            matches.append(JobMatch(job=job, fit_score=0, reason="未評分" if lang != "en" else "Unrated"))
     # 穩定排序：同分時以 url 決定先後，讓同一批職缺的顯示順序可重現（不隨並行/批次到達順序變動）。
     matches.sort(key=lambda m: (-m.fit_score, m.job.url or (m.job.title + m.job.company)))
     # 超出排序上限的職缺仍保留（附在後面、未評分），確保「不設限」顯示全部
-    matches.extend(JobMatch(job=j, fit_score=0, reason="未評分") for j in overflow)
+    matches.extend(JobMatch(job=j, fit_score=0, reason="未評分" if lang != "en" else "Unrated") for j in overflow)
     return matches if top_k is None else matches[:top_k]

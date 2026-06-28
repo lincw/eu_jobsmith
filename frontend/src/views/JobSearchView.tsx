@@ -169,6 +169,7 @@ export function JobSearchView(
             jobs: acc.jobs, companyJobs: acc.companyJobs,
             queries: acc.queries, sources: acc.sources, searchedCompanies: cs,
             linkedin: acc.linkedin, fallback: acc.fallback,
+            params: { pages, regions, customKeywords, dateFilter, workType }
           },
         }),
       })
@@ -241,7 +242,7 @@ export function JobSearchView(
       if (acc.jobs.length || acc.companyJobs.length) setFormOpen(false)  // 有結果就收合表單、凸顯職缺列表
     } catch (e) {
       if ((e as Error)?.name === "AbortError") return  // 被停止或新搜尋取消 → 靜默
-      setError("連線發生問題，請確認伺服器是否啟動。")
+      setError(t("common.connection_error", "連線發生問題，請確認伺服器是否啟動。"))
     } finally {
       if (abortRef.current === ctrl) {
         setBusy(false)
@@ -268,15 +269,17 @@ export function JobSearchView(
   }
 
   function onStart() {
+    if (!file && !text.trim() && activeProfile) {
+      onStartWithActiveProfile()
+      return
+    }
     const form = new FormData()
     if (file) {
       form.append("file", file)
     } else if (text.trim()) {
       form.append("resume_text", text)
     } else {
-      setError(activeProfile
-        ? "請貼上/上傳新履歷，或按「用目前 Profile 搜尋」。"
-        : "請先貼上履歷文字，或上傳履歷檔案")
+      setError(t("search.error_no_resume", "請先貼上履歷文字，或上傳履歷檔案"))
       return
     }
     appendSearchOptions(form)
@@ -285,7 +288,7 @@ export function JobSearchView(
 
   function onStartWithActiveProfile() {
     if (!activeProfile) {
-      setError("目前沒有可用的 Profile，請先貼上或上傳履歷。")
+      setError(t("search.error_no_profile", "目前沒有可用的 Profile，請先貼上或上傳履歷。"))
       return
     }
     const form = new FormData()
@@ -356,7 +359,7 @@ export function JobSearchView(
 
         <div className="mt-4">
           <label className="text-sm font-medium text-slate-700 mb-1.5 flex items-center gap-1.5">
-            <Building2 className="w-4 h-4 text-slate-400" />也想盯哪些公司？（選填）
+            <Building2 className="w-4 h-4 text-slate-400" />{t("app.target_companies_optional", "也想盯哪些公司？（選填）")}
           </label>
           <div className="flex flex-wrap items-center gap-1.5 border border-slate-300 rounded-lg px-2 py-1.5 focus-within:ring-2 focus-within:ring-brand-200">
             {companies.map((c) => (
@@ -408,7 +411,7 @@ export function JobSearchView(
               className="border border-slate-300 rounded-lg px-2 py-1 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-200 disabled:opacity-50"
             >
               {[1, 2, 3, 4, 5].map((n) => (
-                <option key={n} value={n}>{n} 頁</option>
+                <option key={n} value={n}>{n} {t("app.pages_unit", "頁")}</option>
               ))}
             </select>
           </div>

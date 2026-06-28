@@ -178,6 +178,15 @@ def delete_package(pid: int) -> None:
         conn.commit()
 
 
+def update_package_content(pid: int, package: dict) -> None:
+    """手動更新投遞包內容（前端編輯後存檔）。"""
+    conn = db.get_conn()
+    with db.LOCK:
+        conn.execute("UPDATE packages SET package_json=? WHERE id=?",
+                     (json.dumps(package, ensure_ascii=False), pid))
+        conn.commit()
+
+
 def delete_all_packages() -> None:
     conn = db.get_conn()
     with db.LOCK:

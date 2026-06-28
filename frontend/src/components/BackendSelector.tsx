@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { useTranslation } from "react-i18next"
 import { useBackend, CLI_AGENTS, modelLabel } from "../lib/useBackend"
 import { ExecutionSettings } from "./ExecutionSettings"
 import { Cpu, ChevronDown, KeyRound, Settings2, CircleDot, Circle } from "../ui/icons"
@@ -7,6 +8,7 @@ import { Cpu, ChevronDown, KeyRound, Settings2, CircleDot, Circle } from "../ui/
 // 連線測試在「執行設定」面板、與選模型分開。anthropic 是有效後端但不在此露出。
 export function BackendSelector({ refreshKey = 0 }: { refreshKey?: number }) {
   const be = useBackend(refreshKey)
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [settings, setSettings] = useState(false)
   const [mode, setMode] = useState<"cli" | "byok">("cli")
@@ -27,13 +29,13 @@ export function BackendSelector({ refreshKey = 0 }: { refreshKey?: number }) {
   const cur = d.options.find((o) => o.id === d.current)
   const activeCli = CLI_AGENTS.find((a) => a.id === d.current)?.id || ""
   const pill = cur?.kind === "byok"
-    ? `自備 Key · ${d.byok.model || "未設定"}`
-    : `本機 CLI · ${CLI_AGENTS.find((a) => a.id === d.current)?.name || cur?.label || "—"} · ${modelLabel(d.cli_models[d.current]?.current)}`
+    ? `${t("backend.byok", "自備 Key")} · ${d.byok.model || t("backend.no_model", "未設定")}`
+    : `${t("backend.local_cli", "本機 CLI")} · ${CLI_AGENTS.find((a) => a.id === d.current)?.name || cur?.label || "—"} · ${modelLabel(d.cli_models[d.current]?.current)}`
 
   return (
     <div className="relative no-print">
       <button type="button" onClick={toggle} aria-expanded={open}
-        title="切換 AI 後端：本機 CLI 訂閱或自備 Key（OpenAI 相容）。"
+        title={t("backend.toggle_tooltip", "切換 AI 後端：本機 CLI 訂閱或自備 Key（OpenAI 相容）。")}
         className={`inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white pl-3 pr-2 py-1.5 text-xs text-slate-700 shadow-card hover:bg-slate-50 ${be.busy ? "opacity-60" : ""}`}>
         <Cpu className="w-4 h-4 text-brand-500" />
         <span className="font-medium text-slate-800">{pill}</span>
@@ -47,7 +49,7 @@ export function BackendSelector({ refreshKey = 0 }: { refreshKey?: number }) {
             {/* 模式 */}
             <p className="text-xs font-medium text-slate-400 mb-1.5">模式</p>
             <div className="flex gap-1 bg-slate-100 rounded-lg p-1 mb-3">
-              {([["cli", "本機 CLI"], ["byok", "自備 Key"]] as const).map(([id, label]) => (
+              {([["cli", t("backend.local_cli", "本機 CLI")], ["byok", t("backend.byok", "自備 Key")]] as const).map(([id, label]) => (
                 <button key={id} type="button" onClick={() => setMode(id)}
                   className={`flex-1 text-sm font-medium py-1.5 rounded-md transition ${
                     mode === id ? "bg-white text-slate-900 shadow-card" : "text-slate-500 hover:text-slate-700"}`}>

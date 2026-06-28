@@ -225,9 +225,10 @@ def _jd_title(jd_text: str) -> str:
     return "（產生中）"
 
 
-def _run_pipeline_bg(run: "_Run", initial: dict, config: dict, graph) -> None:
+def _run_pipeline_bg(run: "_Run", initial: dict, config: dict, graph, lang: str = "zh") -> None:
     """背景執行緒跑整張 graph（每個產生用自己的 graph，可平行）：逐節點把事件寫進 run 緩衝，
     跑完更新歷史那筆為 done。"""
+    current_lang.set(lang)
     try:
         for chunk in graph.stream(initial, config, stream_mode="updates"):
             if run.is_cancelled():
@@ -286,6 +287,7 @@ def resume_evaluate(
     task_id: str = Form(default=""),
     lang: str = Form(default="zh"),
     report_lang: str = Form(default="zh-TW"),
+    label: str = Form(default=""),
 ):
     current_lang.set(lang)
     resume_label = file.filename if file and file.filename else ("貼上文字" if resume_text.strip() else "")
@@ -302,55 +304,33 @@ def resume_evaluate(
             if not text.strip():
                 yield _sse({"type": "error", "message": "請提供履歷檔案或文字"})
                 return
-            # 功能性把關：健檢同樣需要 AI，接不通就先擋下並引導登入（而非靜默備援健檢）。
             yield _sse({"type": "progress", "step": "backend", "message": "檢查 AI 引擎連線中…"})
             with task_control.task_context(token):
                 live, live_msg = ensure_backend_live(settings.current_backend())
             if not live:
                 yield _sse({"type": "error", "message": live_msg})
                 return
-            yield _sse({
-                "type": "progress",
-                "step": "received",
-                "message": "已收到履歷，準備開始健檢；通常需要 30 秒到 2 分鐘。",
-            })
+            yield _sse({"type": "progress", "step": "received", "message": "已收到履歷，準備開始健檢；通常需要 30 秒到 2 分鐘。"})
             token.check()
-            yield _sse({
-                "type": "progress",
-                "step": "structure",
-                "message": "解析履歷背景中…正在整理姓名、定位、技能與經歷。",
-            })
+            yield _sse({"type": "progress", "step": "structure", "message": "解析履歷背景中…正在整理姓名、定位、技能與經歷。"})
             with task_control.task_context(token):
                 profile = structure_profile(text)
             token.check()
-            # 含 raw_text 原文，供使用者接著到「投遞包工作台」手動開跑時帶入本人背景。
             yield _sse({"type": "profile", "data": profile.model_dump()})
-            yield _sse({
-                "type": "progress",
-                "step": "evaluate",
-                "message": "深度健檢評估中…會檢查 ATS、量化成果、台灣履歷慣例與改寫範例，長履歷或 CLI 模型可能需要更久。",
-            })
+            yield _sse({"type": "progress", "step": "evaluate", "message": "深度健檢評估中…會檢查 ATS、量化成果、歐盟履歷慣例與改寫範例，長履歷或 CLI 模型可能需要更久。"})
             token.check()
             try:
                 with task_control.task_context(token):
                     assessment = evaluate_resume(text, profile, lang=report_lang)
-            except Exception as exc:  # noqa: BLE001 - resume health should degrade on AI/runtime failures
+            except Exception as exc:
                 if isinstance(exc, task_control.TaskCancelled):
                     raise
-                yield _sse({
-                    "type": "progress",
-                    "step": "fallback",
-                    "message": "AI 回覆格式不正確，正在改用保守備援健檢產出可讀報告。",
-                })
+                yield _sse({"type": "progress", "step": "fallback", "message": "AI 回覆格式不正確，正在改用保守備援健檢產出可讀報告。"})
                 assessment = fallback_resume_assessment(text, profile, reason=str(exc), lang=report_lang)
             token.check()
-            yield _sse({
-                "type": "progress",
-                "step": "finalize",
-                "message": "整理健檢報告中…",
-            })
+            yield _sse({"type": "progress", "step": "finalize", "message": "整理健檢報告中…"})
             check_id = _resume_checks.save_check(
-                label="",
+                label=label.strip(),
                 resume_label=resume_label,
                 profile=profile.model_dump(),
                 assessment=assessment.model_dump(),
@@ -403,7 +383,7 @@ def _rank_in_batches(
             except task_control.TaskCancelled:
                 raise
             except Exception:  # noqa: BLE001 — 單批失敗不影響其他批
-                yield fallback_rank_jobs(profile, futs[fut], top_k=None)
+                yield fallback_rank_jobs(profile, futs[fut], top_k=None, lang=lang)
 
 
 def _parse_companies(raw: str) -> list[str]:
@@ -934,6 +914,7 @@ class InterviewStartBody(BaseModel):
     profile: dict | None = None
     n: int = 6
     task_id: str = ""
+    lang: str = "en"
 
 
 class InterviewAnswerBody(BaseModel):
@@ -942,12 +923,14 @@ class InterviewAnswerBody(BaseModel):
     answer: str
     profile: dict | None = None
     task_id: str = ""
+    lang: str = "en"
 
 
 class InterviewSummaryBody(BaseModel):
     jd_text: str
     transcript: list[dict]
     task_id: str = ""
+    lang: str = "en"
 
 
 @app.post("/api/interview/start")
@@ -1114,7 +1097,7 @@ def run(body: RunBody):
     with _RUNS_LOCK:
         _prune_runs()
         _RUNS[thread_id] = run_obj
-    run_obj.future = _RUN_EXECUTOR.submit(_run_pipeline_bg, run_obj, initial, config, _new_run_graph())
+    run_obj.future = _RUN_EXECUTOR.submit(_run_pipeline_bg, run_obj, initial, config, _new_run_graph(), body.lang)
     return {"thread_id": thread_id, "package_id": pid}
 
 
@@ -1246,6 +1229,12 @@ def history_approve(pid: int):
 @app.delete("/api/history/{pid}")
 def history_delete(pid: int):
     _history.delete_package(pid)
+    return {"ok": True}
+
+
+@app.put("/api/history/{pid}")
+def history_update(pid: int, body: dict = Body(...)):
+    _history.update_package_content(pid, body)
     return {"ok": True}
 
 
