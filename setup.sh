@@ -23,5 +23,4 @@ cd ..
 
 echo
 echo "安裝完成！啟動方式："
-echo "  - 桌面 App： $PY desktop.py"
 echo "  - 網頁版：   $PY -m uvicorn app.server:app --port 8000  → http://localhost:8000"

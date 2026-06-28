@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
-import { useBackend, CLI_AGENTS, modelLabel } from "../lib/useBackend"
+import { useBackend, modelLabel } from "../lib/useBackend"
 import { ExecutionSettings } from "./ExecutionSettings"
 import { Cpu, ChevronDown, KeyRound, Settings2, CircleDot, Circle } from "../ui/icons"
 
@@ -26,11 +26,12 @@ export function BackendSelector({ refreshKey = 0 }: { refreshKey?: number }) {
 
   if (!be.data) return null
   const d = be.data
+  const cliAgents = d.options.filter(o => o.kind === "cli")
   const cur = d.options.find((o) => o.id === d.current)
-  const activeCli = CLI_AGENTS.find((a) => a.id === d.current)?.id || ""
+  const activeCli = cliAgents.find((a) => a.id === d.current)?.id || ""
   const pill = cur?.kind === "byok"
     ? `${t("backend.byok", "自備 Key")} · ${d.byok.model || t("backend.no_model", "未設定")}`
-    : `${t("backend.local_cli", "本機 CLI")} · ${CLI_AGENTS.find((a) => a.id === d.current)?.name || cur?.label || "—"} · ${modelLabel(d.cli_models[d.current]?.current)}`
+    : `${t("backend.local_cli", "本機 CLI")} · ${cur?.label || "—"} · ${modelLabel(d.cli_models[d.current]?.current)}`
 
   return (
     <div className="relative no-print">
@@ -47,7 +48,7 @@ export function BackendSelector({ refreshKey = 0 }: { refreshKey?: number }) {
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} aria-hidden />
           <div className="absolute right-0 mt-2 w-[20rem] max-w-[calc(100vw-2rem)] z-50 rounded-xl border border-slate-200 bg-white shadow-cardHover p-3 animate-fade-in-up">
             {/* 模式 */}
-            <p className="text-xs font-medium text-slate-400 mb-1.5">模式</p>
+            <p className="text-xs font-medium text-slate-400 mb-1.5">{t("backend.mode_label")}</p>
             <div className="flex gap-1 bg-slate-100 rounded-lg p-1 mb-3">
               {([["cli", t("backend.local_cli", "本機 CLI")], ["byok", t("backend.byok", "自備 Key")]] as const).map(([id, label]) => (
                 <button key={id} type="button" onClick={() => setMode(id)}
@@ -60,12 +61,11 @@ export function BackendSelector({ refreshKey = 0 }: { refreshKey?: number }) {
 
             {mode === "cli" && (
               <>
-                <p className="text-xs font-medium text-slate-400 mb-1.5">代理</p>
+                <p className="text-xs font-medium text-slate-400 mb-1.5">{t("backend.agent_label")}</p>
                 <div className="grid grid-cols-1 gap-1.5 mb-3">
-                  {CLI_AGENTS.map((a) => {
-                    const o = d.options.find((x) => x.id === a.id)
+                  {cliAgents.map((a) => {
                     const active = d.current === a.id
-                    const avail = Boolean(o?.available)
+                    const avail = Boolean(a.available)
                     return (
                       <button key={a.id} type="button" onClick={() => avail && be.activate(a.id)} disabled={!avail || be.busy}
                         className={`text-left rounded-lg border p-2.5 flex items-center gap-2.5 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 ${
@@ -73,15 +73,15 @@ export function BackendSelector({ refreshKey = 0 }: { refreshKey?: number }) {
                         } ${avail ? "" : "opacity-60"}`}>
                         <Cpu className={`w-4 h-4 shrink-0 ${active ? "text-brand-600" : "text-slate-400"}`} />
                         <span className="flex-1 min-w-0">
-                          <span className="text-sm font-medium text-slate-800 block truncate">{a.name}</span>
-                          {!avail && <span className="text-xs text-slate-400">未偵測到</span>}
+                          <span className="text-sm font-medium text-slate-800 block truncate">{a.label}</span>
+                          {!avail && <span className="text-xs text-slate-400">{t("backend.not_detected")}</span>}
                         </span>
                         {active ? <CircleDot className="w-4 h-4 text-brand-600 shrink-0" /> : <Circle className="w-4 h-4 text-slate-300 shrink-0" />}
                       </button>
                     )
                   })}
                 </div>
-                <p className="text-xs font-medium text-slate-400 mb-1.5">模型</p>
+                <p className="text-xs font-medium text-slate-400 mb-1.5">{t("backend.model_label")}</p>
                 {activeCli ? (
                   <select value={d.cli_models[activeCli]?.current || "auto"} disabled={be.busy}
                     onChange={(e) => be.setModel(activeCli, e.target.value)}
@@ -91,7 +91,7 @@ export function BackendSelector({ refreshKey = 0 }: { refreshKey?: number }) {
                     ))}
                   </select>
                 ) : (
-                  <p className="text-xs text-slate-400">先選一個 CLI 代理。</p>
+                  <p className="text-xs text-slate-400">{t("backend.select_first")}</p>
                 )}
               </>
             )}
@@ -110,14 +110,14 @@ export function BackendSelector({ refreshKey = 0 }: { refreshKey?: number }) {
                   className="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-200" />
                 <button type="button" onClick={() => be.saveByok(byok, true)} disabled={be.busy}
                   className="w-full inline-flex items-center justify-center gap-1.5 text-sm bg-brand-600 text-white rounded-lg px-3 py-1.5 hover:bg-brand-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 disabled:opacity-50">
-                  <KeyRound className="w-4 h-4" />儲存並啟用
+                  <KeyRound className="w-4 h-4" />{t("backend.save_activate")}
                 </button>
               </div>
             )}
 
             <button type="button" onClick={() => { setOpen(false); setSettings(true) }}
               className="mt-3 w-full inline-flex items-center gap-2 text-xs text-slate-500 hover:text-brand-600 rounded px-1 py-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-300">
-              <Settings2 className="w-4 h-4" />開啟執行設定（掃描、測試、版本）
+              <Settings2 className="w-4 h-4" />{t("backend.open_settings")}
             </button>
           </div>
         </>

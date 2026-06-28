@@ -8,6 +8,7 @@ import { InterviewView } from "./views/InterviewView"
 import { HistoryView } from "./views/HistoryView"
 import { SearchHistoryView } from "./views/SearchHistoryView"
 import { PreferencesView } from "./views/PreferencesView"
+import { PresentationCheckView } from "./views/PresentationCheckView"
 import { BackendSelector } from "./components/BackendSelector"
 import { GithubStar } from "./components/GithubStar"
 import { UpdateBanner } from "./components/UpdateBanner"
@@ -20,10 +21,10 @@ import {
 import { Sidebar } from "./ui/Sidebar"
 import type { NavItem } from "./ui/Sidebar"
 import { Button } from "./ui/Button"
-import { Compass, FileChartColumn, Workflow, MessagesSquare, Archive, Settings2, Search, ChevronUp, ChevronDown, ClipboardList } from "./ui/icons"
+import { Compass, FileChartColumn, Workflow, MessagesSquare, Archive, Settings2, Search, ChevronUp, ChevronDown, ClipboardList, MonitorPlay } from "./ui/icons"
 import { useTranslation } from "react-i18next"
 
-type Tab = "search" | "searches" | "resume" | "resumeChecks" | "pipeline" | "interview" | "history" | "settings"
+type Tab = "search" | "searches" | "resume" | "resumeChecks" | "presentation" | "pipeline" | "interview" | "history" | "settings"
 
 const NAV_KEYS: { id: Tab, labelKey: string, icon: any }[] = [
   { id: "search", labelKey: "nav_search", icon: Compass },
@@ -33,6 +34,7 @@ const NAV_KEYS: { id: Tab, labelKey: string, icon: any }[] = [
   { id: "interview", labelKey: "nav_interview", icon: MessagesSquare },
   { id: "resume", labelKey: "nav_resume", icon: FileChartColumn },
   { id: "resumeChecks", labelKey: "nav_resumeChecks", icon: ClipboardList },
+  { id: "presentation", labelKey: "nav_presentation", icon: MonitorPlay },
 ]
 const FOOTER_KEYS: { id: Tab, labelKey: string, icon: any }[] = [{ id: "settings", labelKey: "nav_settings", icon: Settings2 }]
 const BACKEND_CONFIRMED_KEY = "copilot.backend.confirmed"
@@ -251,6 +253,9 @@ export default function App() {
           </div>
           <div key={`resumeChecks-${privacyVersion}`} className={tab === "resumeChecks" ? "" : "hidden"}>
             <ResumeCheckHistoryView active={tab === "resumeChecks"} onProfile={activateSessionProfile} onApplyProfile={(p, meta) => selectProfile(activateSessionProfile(p, meta))} />
+          </div>
+          <div key={`presentation-${privacyVersion}`} className={tab === "presentation" ? "" : "hidden"}>
+            <PresentationCheckView activeProfile={activeProfile} />
           </div>
           <div key={`pipeline-${privacyVersion}`} className={tab === "pipeline" ? "" : "hidden"}>
             <PipelineView seed={seed} activeProfile={activeProfile} profiles={profiles}

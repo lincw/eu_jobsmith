@@ -57,4 +57,5 @@ export {
   UserRound,
   UsersRound,
   X,
+  MonitorPlay,
 } from "lucide-react"

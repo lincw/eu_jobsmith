@@ -5,8 +5,14 @@ import { CandidateProfileManager } from "../components/CandidateProfileManager"
 import { Card } from "../ui/Card"
 import { Button } from "../ui/Button"
 import { Settings2, CheckCircle2, Trash2, FileText } from "../ui/icons"
+import { useTranslation } from "react-i18next"
 
-const TONES = ["自信專業", "務實低調", "親切熱忱", "簡潔有力"]
+const TONES = [
+  { value: "自信專業", labelKey: "preferences.tone_confident" },
+  { value: "務實低調", labelKey: "preferences.tone_humble" },
+  { value: "親切熱忱", labelKey: "preferences.tone_friendly" },
+  { value: "簡潔有力", labelKey: "preferences.tone_concise" }
+]
 
 function split(s: string): string[] {
   return s.split(/[,，]/).map((x) => x.trim()).filter(Boolean)
@@ -30,6 +36,7 @@ export function PreferencesView(
     onClearActiveProfile: () => void
   },
 ) {
+  const { t } = useTranslation();
   const [titles, setTitles] = useState((value.target_titles || []).join("、"))
   const [seniority, setSeniority] = useState(value.seniority || "")
   const [tone, setTone] = useState(value.tone || "")
@@ -77,7 +84,7 @@ export function PreferencesView(
   }
 
   async function clearData() {
-    const ok = window.confirm("這會清除本機履歷快取、搜尋紀錄、投遞包歷史與後端記住的履歷/偏好。確定要繼續？")
+    const ok = window.confirm(t("preferences.clear_confirm", "這會清除本機履歷快取、搜尋紀錄、投遞包歷史與後端記住的履歷/偏好。確定要繼續？"))
     if (!ok) return
     setClearing(true); setCleared(false); setClearError("")
     try {
@@ -88,7 +95,7 @@ export function PreferencesView(
       onClearData?.()
       setCleared(true)
     } catch {
-      setClearError("清除失敗，請稍後再試。")
+      setClearError(t("preferences.clear_error", "清除失敗，請稍後再試。"))
     } finally {
       setClearing(false)
     }
@@ -100,7 +107,7 @@ export function PreferencesView(
       const r = await fetch("/api/diagnostics/open-log-folder", { method: "POST" })
       if (!r.ok) throw new Error("open failed")
     } catch {
-      setDiagnosticsError("無法自動開啟資料夾，請手動開啟下方路徑。")
+      setDiagnosticsError(t("preferences.error_log_open_error", "無法自動開啟資料夾，請手動開啟下方路徑。"))
     } finally {
       setOpeningLog(false)
     }
@@ -110,9 +117,9 @@ export function PreferencesView(
   return (
     <div className="max-w-3xl">
       <h2 className="font-semibold mb-1 flex items-center gap-2">
-        <Settings2 className="w-5 h-5 text-brand-600" />個人化
+        <Settings2 className="w-5 h-5 text-brand-600" />{t("preferences.title", "個人化")}
       </h2>
-      <p className="text-sm text-slate-500 mb-4">Profile 用來選履歷；偏好用來調整產出方向。兩者分開儲存與管理。</p>
+      <p className="text-sm text-slate-500 mb-4">{t("preferences.profile_desc", "Profile 用來選履歷；偏好用來調整產出方向。兩者分開儲存與管理。")}</p>
       <Card className="p-5 mb-5">
         <CandidateProfileManager
           profiles={profiles}
@@ -125,62 +132,62 @@ export function PreferencesView(
           onClearActiveProfile={onClearActiveProfile}
         />
       </Card>
-      <h3 className="font-semibold mb-1">產出偏好</h3>
-      <p className="text-sm text-slate-500 mb-4">這些偏好會套用到客製履歷、求職信與面試準備，讓產出更貼近你的方向。</p>
+      <h3 className="font-semibold mb-1">{t("preferences.output_title", "產出偏好")}</h3>
+      <p className="text-sm text-slate-500 mb-4">{t("preferences.output_desc", "這些偏好會套用到客製履歷、求職信與面試準備，讓產出更貼近你的方向。")}</p>
       <Card className="p-5 space-y-4">
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">目標職稱（可多個，用、或逗號分隔）</label>
+          <label className="block text-sm font-medium text-slate-700 mb-1">{t("preferences.target_roles_label", "目標職稱（可多個，用、或逗號分隔）")}</label>
           <input className={field} value={titles} onChange={(e) => setTitles(e.target.value)}
-            placeholder="例：AI 工程師、後端工程師" />
+            placeholder={t("preferences.target_roles_ph", "例：AI 工程師、後端工程師")} />
         </div>
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">目標層級 / 年資</label>
+          <label className="block text-sm font-medium text-slate-700 mb-1">{t("preferences.years_exp_label", "目標層級 / 年資")}</label>
           <input className={field} value={seniority} onChange={(e) => setSeniority(e.target.value)}
-            placeholder="例：資深、3-5 年" />
+            placeholder={t("preferences.years_exp_ph", "例：資深、3-5 年")} />
         </div>
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">語氣</label>
-          <div className="flex flex-wrap gap-2" role="group" aria-label="語氣">
-            {TONES.map((t) => (
-              <button key={t} type="button" onClick={() => setTone(t)} aria-pressed={tone === t}
+          <label className="block text-sm font-medium text-slate-700 mb-1">{t("preferences.tone_label", "語氣")}</label>
+          <div className="flex flex-wrap gap-2" role="group" aria-label={t("preferences.tone_label", "語氣")}>
+            {TONES.map((t_obj) => (
+              <button key={t_obj.value} type="button" onClick={() => setTone(t_obj.value)} aria-pressed={tone === t_obj.value}
                 className={`px-3 py-1.5 rounded-lg text-sm border transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 ${
-                  tone === t ? "bg-brand-600 text-white border-brand-600" : "bg-white border-slate-300 text-slate-600 hover:bg-slate-50"
-                }`}>{t}</button>
+                  tone === t_obj.value ? "bg-brand-600 text-white border-brand-600" : "bg-white border-slate-300 text-slate-600 hover:bg-slate-50"
+                }`}>{t(t_obj.labelKey, t_obj.value)}</button>
             ))}
           </div>
         </div>
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">想強調的技能（可多個）</label>
+          <label className="block text-sm font-medium text-slate-700 mb-1">{t("preferences.skills_label", "想強調的技能（可多個）")}</label>
           <input className={field} value={skills} onChange={(e) => setSkills(e.target.value)}
-            placeholder="例：LLM、LangGraph、RAG" />
+            placeholder={t("preferences.skills_ph", "例：LLM、LangGraph、RAG")} />
         </div>
         <div className="flex items-center gap-3 pt-1">
-          <Button onClick={save} loading={busy} icon={CheckCircle2}>儲存偏好</Button>
-          {saved && <span className="text-sm text-emerald-600 inline-flex items-center gap-1"><CheckCircle2 className="w-4 h-4" />已儲存</span>}
+          <Button onClick={save} loading={busy} icon={CheckCircle2}>{t("preferences.save_btn", "儲存偏好")}</Button>
+          {saved && <span className="text-sm text-emerald-600 inline-flex items-center gap-1"><CheckCircle2 className="w-4 h-4" />{t("preferences.saved", "已儲存")}</span>}
         </div>
       </Card>
       <Card className="p-5 mt-5 border-rose-200 bg-rose-50/40">
-        <h3 className="font-semibold text-sm text-rose-900 mb-1">清除個人資料</h3>
+        <h3 className="font-semibold text-sm text-rose-900 mb-1">{t("preferences.clear_title", "清除個人資料")}</h3>
         <p className="text-sm text-rose-700 mb-3">
-          清除本機履歷快取、搜尋紀錄、投遞包歷史，以及後端記住的履歷與偏好。AI 後端設定不會被清除。
+          {t("preferences.clear_desc", "清除本機履歷快取、搜尋紀錄、投遞包歷史，以及後端記住的履歷與偏好。AI 後端設定不會被清除。")}
         </p>
         <Button variant="danger" icon={Trash2} loading={clearing} onClick={clearData}>
-          清除個人資料
+          {t("preferences.clear_btn", "清除個人資料")}
         </Button>
         {cleared && (
           <span className="ml-3 text-sm text-emerald-700 inline-flex items-center gap-1">
-            <CheckCircle2 className="w-4 h-4" />已清除
+            <CheckCircle2 className="w-4 h-4" />{t("preferences.cleared", "已清除")}
           </span>
         )}
         {clearError && <p className="text-sm text-rose-700 mt-2">{clearError}</p>}
       </Card>
       <Card className="p-5 mt-5">
-        <h3 className="font-semibold text-sm text-slate-900 mb-1">錯誤記錄與回報</h3>
+        <h3 className="font-semibold text-sm text-slate-900 mb-1">{t("preferences.error_log_title", "錯誤記錄與回報")}</h3>
         <p className="text-sm text-slate-600 mb-3">
-          如果 App 無法啟動、AI 後端失敗或畫面卡住，回報 issue 時請附上錯誤記錄。
+          {t("preferences.error_log_desc", "如果 App 無法啟動、AI 後端失敗或畫面卡住，回報 issue 時請附上錯誤記錄。")}
         </p>
         <Button variant="secondary" icon={FileText} loading={openingLog} onClick={openLogFolder}>
-          開啟錯誤記錄資料夾
+          {t("preferences.error_log_open", "開啟錯誤記錄資料夾")}
         </Button>
         {diagnostics?.error_log && (
           <p className="text-xs text-slate-500 mt-3 break-all">

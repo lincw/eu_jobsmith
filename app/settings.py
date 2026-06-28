@@ -30,7 +30,7 @@ SUPPORTED_BACKENDS: tuple[str, ...] = ("claude_cli", "codex_cli", "agy_cli", "op
 BACKEND_LABELS: dict[str, str] = {
     "claude_cli": "Claude Code CLI（訂閱）",
     "codex_cli": "Codex CLI（訂閱）",
-    "agy_cli": "Agy CLI（本機）",
+    "agy_cli": "Agy CLI（訂閱）",
     "openai": "OpenAI 相容 (BYOK)",
     "anthropic": "Anthropic API（金鑰）",
 }
@@ -64,9 +64,9 @@ def set_backend(name: str, *, persist: bool = False) -> None:
 # 否則固定用該模型跑所有分層。claude 用 --model 別名；codex 用 -c model=...。
 # ---------------------------------------------------------------------------
 CLI_MODEL_CHOICES: dict[str, list[str]] = {
-    "claude_cli": ["auto", "haiku", "sonnet", "opus"],
-    "codex_cli": ["auto", "gpt-5-codex", "gpt-5", "o4-mini"],
-    "agy_cli": ["auto", "gemini-3.5-pro", "gemini-3.5-flash"],
+    "claude_cli": ["auto"],
+    "codex_cli": ["auto"],
+    "agy_cli": ["auto"],
 }
 _cli_model: dict[str, str] = {"claude_cli": "auto", "codex_cli": "auto", "agy_cli": "auto"}
 
@@ -80,7 +80,10 @@ def set_cli_model(backend: str, model: str) -> None:
     """設定 CLI 後端要用的模型；非 CLI 後端丟 ValueError。"""
     if backend not in _cli_model:
         raise ValueError(f"非 CLI 後端不支援模型選擇：{backend!r}")
-    _cli_model[backend] = (model or "auto").strip() or "auto"
+    value = (model or "auto").strip() or "auto"
+    if value not in CLI_MODEL_CHOICES.get(backend, ["auto"]):
+        raise ValueError("本機 CLI 模型不可由 Jobsmith 硬編碼選擇；請使用 auto 或在 CLI 自身設定模型。")
+    _cli_model[backend] = value
 
 
 # ---------------------------------------------------------------------------

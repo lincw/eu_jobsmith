@@ -20,6 +20,5 @@ cd ..
 
 echo.
 echo 安裝完成！接著：
-echo   - 桌面 App：雙擊 desktop.bat
 echo   - 網頁版： 雙擊 run.bat 後開 http://localhost:8000
 pause

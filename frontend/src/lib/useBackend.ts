@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { newTaskId, stopTask } from "./taskControl"
+import { useTranslation } from "react-i18next"
 
 // 後端控制台共用資料層：右上角 popover 與「執行設定」面板都用這個 hook。
 export interface BackendOption { id: string; label: string; available: boolean; kind: string; version?: string }
@@ -19,6 +20,7 @@ function postJSON(url: string, body: unknown, signal?: AbortSignal) {
 }
 
 export function useBackend(reloadKey = 0) {
+  const { t } = useTranslation()
   const [data, setData] = useState<BackendData | null>(null)
   const [busy, setBusy] = useState(false)
   const [tests, setTests] = useState<Record<string, TestState>>({})
@@ -71,13 +73,13 @@ export function useBackend(reloadKey = 0) {
     setTests((t) => ({ ...t, [id]: "loading" }))
     try {
       const d = await (await postJSON("/api/backend/test", { backend: id, task_id: taskId }, ctrl.signal)).json()
-      setTests((t) => ({ ...t, [id]: { ok: Boolean(d.ok), msg: d.message || (d.ok ? "連線成功" : "連線失敗") } }))
+      setTests((tState) => ({ ...tState, [id]: { ok: Boolean(d.ok), msg: d.message || (d.ok ? t("backend.test_success") : t("backend.test_fail")) } }))
     } catch (e) {
       if ((e as Error)?.name === "AbortError") {
-        setTests((t) => ({ ...t, [id]: { ok: false, msg: "已停止測試" } }))
+        setTests((tState) => ({ ...tState, [id]: { ok: false, msg: t("backend.test_stopped") } }))
         return
       }
-      setTests((t) => ({ ...t, [id]: { ok: false, msg: "連線發生問題，請確認伺服器已啟動。" } }))
+      setTests((tState) => ({ ...tState, [id]: { ok: false, msg: t("backend.test_error") } }))
     } finally {
       if (testTasksRef.current[id]?.ctrl === ctrl) delete testTasksRef.current[id]
     }
@@ -93,19 +95,13 @@ export function useBackend(reloadKey = 0) {
     } finally {
       current.ctrl.abort()
       delete testTasksRef.current[id]
-      setTests((t) => ({ ...t, [id]: { ok: false, msg: "已停止測試" } }))
+      setTests((tState) => ({ ...tState, [id]: { ok: false, msg: t("backend.test_stopped") } }))
     }
   }
 
   return { data, busy, tests, reload, activate, setModel, saveByok, runTest, stopTest }
 }
 
-// CLI 代理清單（目前支援的本機 CLI）。顯示名與後端 id 對應。
-export const CLI_AGENTS: { id: string; name: string }[] = [
-  { id: "claude_cli", name: "Claude Code" },
-  { id: "codex_cli", name: "Codex CLI" },
-  { id: "agy_cli", name: "Agy CLI" },
-]
 
 export function modelLabel(m: string | undefined): string {
   return !m || m === "auto" ? "Default" : m

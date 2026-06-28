@@ -280,3 +280,16 @@ class SupervisorDecision(BaseModel):
         default_factory=list,
         description="next_action=revise 時要重寫哪些文件，鍵限 resume/cover_letter/interview")
     rationale: str = Field(default="", description="決策理由（給使用者看的一句話）")
+
+
+class PresentationQuestion(BaseModel):
+    """單一簡報面試問題。"""
+    role: Literal["hr", "leader", "ceo"] = Field(description="提問者角色：hr, leader 或 ceo")
+    question: str = Field(description="問題內容")
+    reason: str = Field(description="為什麼問這個問題 / 考量點")
+
+
+class PresentationAssessment(BaseModel):
+    """簡報評估與可能問題報告。"""
+    summary: str = Field(description="簡報總結")
+    questions: list[PresentationQuestion] = Field(default_factory=list, description="可能被問的問題清單")

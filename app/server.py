@@ -25,6 +25,7 @@ from app.llm import current_lang
 from app.agents.company_jobs import find_company_jobs
 from app.agents.job_search import derive_queries, fallback_rank_jobs, rank_jobs
 from app.agents.resume_eval import evaluate_resume, fallback_resume_assessment, structure_profile
+from app.agents.presentation_eval import evaluate_presentation
 from app.cli import load_profile
 from app.graph import build_graph
 from app.intake.resume_parser import extract_text
@@ -35,6 +36,7 @@ from app.store import db as _appdb
 from app.store import history as _history
 from app.store import memory as _memory
 from app.store import resume_checks as _resume_checks
+from app.store import presentation_checks as _presentation_checks
 from app.store import searches as _searches
 
 app = FastAPI()
@@ -341,6 +343,69 @@ def resume_evaluate(
         except task_control.TaskCancelled:
             yield _stopped_sse()
         except Exception as exc:  # LLM 後端 429/額度/截斷等：回傳友善訊息而非中斷串流
+            yield _sse({"type": "error",
+                        "message": f"AI 服務暫時無法使用，請稍後再試。（{_err_detail(exc)}）"})
+        finally:
+            _finish_task(token)
+
+    return StreamingResponse(gen(), media_type="text/event-stream")
+
+
+@app.post("/api/presentation/evaluate")
+def presentation_evaluate(
+    file: UploadFile | None = File(default=None),
+    presentation_text: str = Form(default=""),
+    task_id: str = Form(default=""),
+    lang: str = Form(default="zh"),
+    report_lang: str = Form(default="zh-TW"),
+    label: str = Form(default=""),
+    jd: str = Form(default=""),
+    profile_json: str = Form(default=""),
+):
+    current_lang.set(lang)
+    presentation_label = file.filename if file and file.filename else ("貼上文字" if presentation_text.strip() else "")
+    text, text_error = _resume_text_from_request(file, presentation_text)
+    posted_profile, profile_error = _profile_from_json(profile_json)
+    token = _task_from_id(task_id)
+
+    def gen():
+        try:
+            yield _sse({"type": "start", "task_id": token.task_id})
+            token.check()
+            if text_error:
+                yield _sse({"type": "error", "message": text_error})
+                return
+            if profile_error:
+                yield _sse({"type": "error", "message": profile_error})
+                return
+            if not text.strip():
+                yield _sse({"type": "error", "message": "請提供簡報檔案或文字"})
+                return
+            yield _sse({"type": "progress", "step": "backend", "message": "檢查 AI 引擎連線中…"})
+            with task_control.task_context(token):
+                live, live_msg = ensure_backend_live(settings.current_backend())
+            if not live:
+                yield _sse({"type": "error", "message": live_msg})
+                return
+            yield _sse({"type": "progress", "step": "received", "message": "已收到簡報，準備開始分析；通常需要 1 到 2 分鐘。"})
+            token.check()
+            yield _sse({"type": "progress", "step": "evaluate", "message": "分析簡報並產生面試題中…"})
+            token.check()
+            with task_control.task_context(token):
+                assessment = evaluate_presentation(text, profile=posted_profile, jd=jd, lang=report_lang)
+            token.check()
+            yield _sse({"type": "progress", "step": "finalize", "message": "整理提問報告中…"})
+            check_id = _presentation_checks.save_check(
+                label=label.strip(),
+                presentation_label=presentation_label,
+                assessment=assessment.model_dump(),
+            )
+            yield _sse({"type": "saved_check", "id": check_id})
+            yield _sse({"type": "assessment", "data": assessment.model_dump()})
+            yield _sse({"type": "done"})
+        except task_control.TaskCancelled:
+            yield _stopped_sse()
+        except Exception as exc:
             yield _sse({"type": "error",
                         "message": f"AI 服務暫時無法使用，請稍後再試。（{_err_detail(exc)}）"})
         finally:

@@ -15,6 +15,8 @@ export type SSEEvent =
   | { type: "stopped"; message: string }
   | { type: "done" }
   | { type: "error"; message: string }
+  | { type: "assessment"; data: any }
+  | { type: "saved_check"; id: number }
 
 // ---- 多 agent 投遞包流程（對應後端 app/models.py）----
 export interface ParsedJob {
@@ -72,6 +74,19 @@ export interface ResumeCheckSummary {
 }
 export interface ResumeCheckDetail extends ResumeCheckSummary {
   profile?: UserProfile | null; assessment: ResumeAssessment;
+}
+
+export interface PresentationQuestion {
+  role: "hr" | "leader" | "ceo"; question: string; reason: string;
+}
+export interface PresentationAssessment {
+  summary: string; questions: PresentationQuestion[];
+}
+export interface PresentationCheckSummary {
+  id: number; created_at: string; label: string; presentation_label: string;
+}
+export interface PresentationCheckDetail extends PresentationCheckSummary {
+  assessment: PresentationAssessment;
 }
 
 export interface EditableProfile {

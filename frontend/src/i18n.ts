@@ -15,6 +15,7 @@ i18n
     resources,
     lng: localStorage.getItem('i18nextLng') || 'zh', // default to Traditional Chinese
     fallbackLng: 'en',
+    keySeparator: false, // use flat keys containing dots
     interpolation: {
       escapeValue: false // react already safes from xss
     }

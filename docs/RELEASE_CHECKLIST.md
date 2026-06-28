@@ -10,11 +10,10 @@ Use this checklist before publishing a GitHub release or sharing desktop builds 
 - [ ] Run frontend build: `cd frontend && npm run build`
 - [ ] Run a clean install on a fresh checkout or temporary folder.
 
-## Windows EXE Smoke Test
+## Browser Smoke Test
 
-- [ ] Build with `pyinstaller jobsmith.spec --noconfirm`.
-- [ ] Start `dist/Jobsmith.exe` on Windows 10 or Windows 11.
-- [ ] Confirm first launch opens the native window.
+- [ ] Start backend using `run.bat` or `python -m uvicorn app.server:app --port 8000`.
+- [ ] Open http://localhost:8000 in a fresh browser profile.
 - [ ] Confirm Settings can select a local CLI backend or BYOK backend.
 - [ ] Upload a small PDF resume and confirm parsing succeeds.
 - [ ] Run one low-frequency job search.
@@ -23,16 +22,6 @@ Use this checklist before publishing a GitHub release or sharing desktop builds 
 - [ ] Open mock interview from a package.
 - [ ] Use Settings to clear personal data, then confirm history/searches are removed.
 - [ ] Open the error-log folder from Settings.
-
-## Unsigned macOS DMG
-
-- [ ] Run **Actions -> Build unsigned macOS DMG**.
-- [ ] Confirm both artifacts were produced:
-  - `Jobsmith-macOS-arm64-unsigned.dmg`
-  - `Jobsmith-macOS-x64-unsigned.dmg`
-- [ ] On a real Mac, open the DMG, drag `Jobsmith.app` to Applications, then launch with right-click -> Open.
-- [ ] Confirm first launch opens the native window and local data is created under `~/Library/Application Support/Jobsmith`.
-- [ ] State clearly that the macOS build is unsigned and not notarized.
 
 ## Privacy and Packaging
 
@@ -54,5 +43,5 @@ Use this checklist before publishing a GitHub release or sharing desktop builds 
 
 - [ ] Verify screenshots match the current UI.
 - [ ] Confirm issue templates are enabled.
-- [ ] Prepare a short troubleshooting note for Windows SmartScreen, macOS Gatekeeper, missing WebView2, and missing CLI login.
+- [ ] Prepare a short troubleshooting note for missing CLI login or missing dependencies.
 - [ ] Monitor GitHub issues after launch and be ready to patch source-site breakages.

@@ -44,6 +44,10 @@ def _init(conn: sqlite3.Connection) -> None:
         "id INTEGER PRIMARY KEY AUTOINCREMENT, created_at TEXT, label TEXT, resume_label TEXT, "
         "candidate_name TEXT, overall_score INTEGER, assessment_mode TEXT, fallback_reason TEXT, "
         "profile_json TEXT, assessment_json TEXT)")
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS presentation_checks("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT, created_at TEXT, label TEXT, presentation_label TEXT, "
+        "assessment_json TEXT)")
     conn.commit()
 
 
