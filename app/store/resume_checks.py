@@ -78,6 +78,13 @@ def delete_check(cid: int) -> None:
         conn.commit()
 
 
+def rename_check(cid: int, new_label: str) -> None:
+    conn = db.get_conn()
+    with db.LOCK:
+        conn.execute("UPDATE resume_checks SET label=? WHERE id=?", (new_label.strip()[:200], cid))
+        conn.commit()
+
+
 def delete_all_checks() -> None:
     conn = db.get_conn()
     with db.LOCK:

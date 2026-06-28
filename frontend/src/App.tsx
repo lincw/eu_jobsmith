@@ -96,6 +96,7 @@ export default function App() {
 
   function selectProfile(profile: CandidateProfile | null) {
     setActiveProfile(profile ? { ...profile, saved: true } : null)
+    if (profile) setTab("search")
   }
 
   function updateActiveProfile(profile: UserProfile) {
@@ -226,7 +227,7 @@ export default function App() {
               {tab === "search" && searchHasResults && (
                 <Button variant="secondary" size="sm" icon={searchFormOpen ? ChevronUp : ChevronDown}
                   onClick={() => setSearchFormOpen((o) => !o)}>
-                  {searchFormOpen ? "收合搜尋條件" : "修改搜尋條件"}
+                  {searchFormOpen ? t("app.collapse_search", "Collapse Search") : t("app.modify_search", "Modify Search")}
                 </Button>
               )}
               <Button variant="secondary" size="sm" onClick={toggleLanguage}>
@@ -249,7 +250,7 @@ export default function App() {
             <ResumeHealthView onProfile={activateSessionProfile} />
           </div>
           <div key={`resumeChecks-${privacyVersion}`} className={tab === "resumeChecks" ? "" : "hidden"}>
-            <ResumeCheckHistoryView active={tab === "resumeChecks"} onProfile={activateSessionProfile} />
+            <ResumeCheckHistoryView active={tab === "resumeChecks"} onProfile={activateSessionProfile} onApplyProfile={(p, meta) => selectProfile(activateSessionProfile(p, meta))} />
           </div>
           <div key={`pipeline-${privacyVersion}`} className={tab === "pipeline" ? "" : "hidden"}>
             <PipelineView seed={seed} activeProfile={activeProfile} profiles={profiles}

@@ -108,5 +108,5 @@ export const CLI_AGENTS: { id: string; name: string }[] = [
 ]
 
 export function modelLabel(m: string | undefined): string {
-  return !m || m === "auto" ? "預設" : m
+  return !m || m === "auto" ? "Default" : m
 }

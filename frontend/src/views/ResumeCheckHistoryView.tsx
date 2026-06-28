@@ -6,7 +6,7 @@ import { Dashboard } from "../components/Dashboard"
 import { Card } from "../ui/Card"
 import { EmptyState } from "../ui/EmptyState"
 import { Badge } from "../ui/Badge"
-import { ArrowLeft, FileChartColumn, Trash2, UserRound } from "../ui/icons"
+import { ArrowLeft, FileChartColumn, Trash2, UserRound, Pencil } from "../ui/icons"
 
 function fmtDate(iso: string) {
   try { return new Date(iso).toLocaleString("zh-TW", { dateStyle: "medium", timeStyle: "short" }) }
@@ -18,8 +18,8 @@ function modeLabel(mode: string) {
 }
 
 export function ResumeCheckHistoryView(
-  { active, onProfile }:
-  { active: boolean; onProfile?: (p: UserProfile, meta?: { label?: string; resumeLabel?: string }) => void },
+  { active, onProfile, onApplyProfile }:
+  { active: boolean; onProfile?: (p: UserProfile, meta?: { label?: string; resumeLabel?: string }) => void; onApplyProfile?: (p: UserProfile, meta?: { label?: string; resumeLabel?: string }) => void },
 ) {
   const { t } = useTranslation();
   const [list, setList] = useState<ResumeCheckSummary[]>([])
@@ -48,6 +48,19 @@ export function ResumeCheckHistoryView(
     refresh()
   }
 
+  async function renameItem(id: number, e: MouseEvent, currentLabel: string) {
+    e.stopPropagation()
+    const newLabel = prompt(t("history.rename_prompt", "重新命名："), currentLabel)
+    if (!newLabel || newLabel === currentLabel) return
+    await fetch(`/api/resume/checks/${id}/rename`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ label: newLabel })
+    })
+    if (detail?.id === id) setDetail({ ...detail, label: newLabel })
+    refresh()
+  }
+
   if (detail) {
     return (
       <div>
@@ -69,10 +82,19 @@ export function ResumeCheckHistoryView(
           </div>
           {detail.profile && (
             <button type="button"
-              onClick={() => onProfile?.(detail.profile as UserProfile, {
-                label: detail.candidate_name || detail.label,
-                resumeLabel: detail.resume_label || t("history.resume_checks", "健檢紀錄"),
-              })}
+              onClick={() => {
+                if (onApplyProfile) {
+                  onApplyProfile(detail.profile as UserProfile, {
+                    label: detail.candidate_name || detail.label,
+                    resumeLabel: detail.resume_label || t("history.resume_checks", "健檢紀錄"),
+                  })
+                } else if (onProfile) {
+                  onProfile(detail.profile as UserProfile, {
+                    label: detail.candidate_name || detail.label,
+                    resumeLabel: detail.resume_label || t("history.resume_checks", "健檢紀錄"),
+                  })
+                }
+              }}
               className="inline-flex items-center gap-1.5 text-sm border border-slate-300 rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-300">
               <UserRound className="w-4 h-4" />{t("history.apply_profile", "套用 Profile")}
             </button>
@@ -122,11 +144,18 @@ export function ResumeCheckHistoryView(
               <p className="text-xs text-amber-700 truncate mt-0.5">{t("history.reason", "原因：")}{item.fallback_reason}</p>
             )}
           </div>
-          <button onClick={(e) => del(item.id, e)} aria-label={`刪除 ${item.label}`} title="刪除"
-            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") e.stopPropagation() }}
-            className="shrink-0 p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-300">
-            <Trash2 className="w-4 h-4" />
-          </button>
+          <div className="shrink-0 flex items-center gap-1">
+            <button onClick={(e) => renameItem(item.id, e, item.label)} aria-label={`重新命名 ${item.label}`} title="重新命名"
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") e.stopPropagation() }}
+              className="p-2 rounded-lg text-slate-400 hover:text-brand-600 hover:bg-brand-50 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-300">
+              <Pencil className="w-4 h-4" />
+            </button>
+            <button onClick={(e) => del(item.id, e)} aria-label={`刪除 ${item.label}`} title="刪除"
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") e.stopPropagation() }}
+              className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-300">
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
         </Card>
       ))}
       {busy && <p className="text-sm text-slate-400">{t("common.loading", "載入中…")}</p>}

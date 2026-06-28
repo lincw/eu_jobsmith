@@ -20,19 +20,30 @@ _PER_PAGE = 25  # guest API 每次回傳一批，下一頁以 start 位移 25
 
 
 def search(keywords: str, limit: int = 15, pages: int = 1,
-           area: list[str] | None = None, location: str = "") -> SearchResult:
+           area: list[str] | None = None, location: str = "",
+           date_filter: str = "any", work_type: str = "any") -> SearchResult:
     """搜尋 LinkedIn guest API；pages>1 時以 start 位移逐頁抓取並跨頁去重。
 
     area：保留參數，本來源不支援來源端地區篩選（地區由結果端 location 過濾處理）。
     location：LinkedIn location 字串（如 "Germany"、"European Union"）；空字串表示不限地區。
     """
     loc_param = f"&location={quote(location)}" if location else ""
+    date_param = ""
+    if date_filter == "past_month": date_param = "&f_TPR=r2592000"
+    elif date_filter == "past_week": date_param = "&f_TPR=r604800"
+    elif date_filter == "past_24h": date_param = "&f_TPR=r86400"
+    
+    work_param = ""
+    if work_type == "remote": work_param = "&f_WT=2"
+    elif work_type == "hybrid": work_param = "&f_WT=3"
+    elif work_type == "onsite": work_param = "&f_WT=1"
+    
     jobs: list[JobPosting] = []
     seen: set[str] = set()
     cap = limit * max(1, pages)  # 總筆數上限，與其他來源的 limit×pages 一致
     for page in range(max(1, pages)):
         try:
-            r = http_get(_API_BASE.format(kw=quote(keywords), loc=loc_param, start=page * _PER_PAGE), verify=False)
+            r = http_get(_API_BASE.format(kw=quote(keywords), loc=loc_param, start=page * _PER_PAGE) + date_param + work_param, verify=False)
             if not r.ok:
                 if page == 0:
                     return SearchResult(source=NAME, blocked=True, error=f"HTTP {r.status_code}")

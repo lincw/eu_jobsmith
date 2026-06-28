@@ -264,6 +264,15 @@ export function InterviewView(
     </div>
   )
 
+  async function deletePackage(id: number, e: React.MouseEvent) {
+    e.stopPropagation()
+    if (!confirm(t("interview.confirm_delete", "確定要刪除這筆投遞包嗎？"))) return
+    try {
+      await fetch(`/api/history/${id}`, { method: "DELETE" })
+      setPackages((ps) => ps.filter((p) => p.id !== id))
+    } catch { /* ignore */ }
+  }
+
   // ---- 挑選畫面（沒有選定 session）----
   if (!cur) {
     return (
@@ -275,20 +284,27 @@ export function InterviewView(
               <Archive className="w-4 h-4 text-brand-600" />{t("interview.use_pkg", "用「我的投遞包」開始模擬")}
             </h3>
             <p className="text-sm text-slate-500 mb-3">{t("interview.use_pkg_desc", "選一筆投遞包，用它的 JD 與履歷開一個獨立的面試對話。")}</p>
-            <div className="space-y-2 max-h-72 overflow-auto">
+            <div className="space-y-2 max-h-72 overflow-auto pr-1">
               {packages.map((p) => (
-                <button key={p.id} onClick={() => startPackageSession(p)}
-                  className="w-full flex items-center gap-3 p-3 rounded-lg border border-slate-200 hover:border-brand-300 hover:bg-brand-50/40 transition text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-300">
-                  <div className={`shrink-0 w-10 h-10 rounded-lg grid place-items-center font-bold text-white text-sm ${
-                    p.match_score >= 80 ? "bg-emerald-600" : p.match_score >= 60 ? "bg-amber-500" : "bg-slate-400"}`}>
-                    {p.match_score}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-medium text-slate-800 truncate">{p.job_title}</p>
-                    <p className="text-xs text-slate-500 truncate">{p.company || "—"}</p>
-                  </div>
-                  <ArrowRight className="w-4 h-4 text-slate-400 ml-auto shrink-0" />
-                </button>
+                <div key={p.id} className="relative group">
+                  <button onClick={() => startPackageSession(p)}
+                    className="w-full flex items-center gap-3 p-3 rounded-lg border border-slate-200 hover:border-brand-300 hover:bg-brand-50/40 transition text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-300">
+                    <div className={`shrink-0 w-10 h-10 rounded-lg grid place-items-center font-bold text-white text-sm ${
+                      p.match_score >= 80 ? "bg-emerald-600" : p.match_score >= 60 ? "bg-amber-500" : "bg-slate-400"}`}>
+                      {p.match_score}
+                    </div>
+                    <div className="min-w-0 pr-16">
+                      <p className="font-medium text-slate-800 truncate">{p.job_title}</p>
+                      <p className="text-xs text-slate-500 truncate">{p.company || "—"}</p>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-slate-400 ml-auto shrink-0 group-hover:text-brand-500" />
+                  </button>
+                  <button onClick={(e) => deletePackage(p.id, e)}
+                    className="absolute right-12 top-1/2 -translate-y-1/2 p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-300"
+                    title={t("common.delete", "刪除")}>
+                    <XCircle className="w-4 h-4" />
+                  </button>
+                </div>
               ))}
             </div>
           </Card>

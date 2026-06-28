@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next"
 import type { ResumeAssessment, UserProfile, SSEEvent } from "../types"
 import { readSSE } from "../sse"
 import { newTaskId, stopTask } from "../lib/taskControl"
-import { SAMPLE_RESUME } from "../sampleResume"
+
 import { Dashboard } from "../components/Dashboard"
 import { Card } from "../ui/Card"
 import { Button } from "../ui/Button"
@@ -13,42 +13,7 @@ import { EmptyState } from "../ui/EmptyState"
 import { Gauge, Upload, Loader2, Timer, ListChecks, XCircle } from "../ui/icons"
 
 const RESUME_HEALTH_WAIT_HINT = "深度健檢通常需要 30 秒到 2 分鐘，長履歷、PDF 格式或 CLI 模型可能更久。"
-const DEEP_SAMPLE: ResumeAssessment = {
-  assessment_mode: "deep",
-  fallback_reason: "",
-  overall_score: 86,
-  clarity_score: 84,
-  impact_score: 82,
-  ats_keyword_score: 88,
-  localization_score: 90,
-  completeness_score: 86,
-  summary: "這是一份深度健檢完成時的範例。報告會同時檢查定位、成果量化、ATS 關鍵字、台灣履歷慣例與可直接套用的改寫方式。",
-  strengths: [
-    "目標職稱明確，技能區與工作經歷能互相支撐。",
-    "已有部分量化成果，可讓招募者快速判斷影響力。",
-  ],
-  issues: [
-    {
-      severity: "medium",
-      area: "量化成果",
-      problem: "部分經歷仍停留在職責描述，缺少規模、改善幅度或使用者影響。",
-      fix: "把『負責開發 API』改成『用 FastAPI 建置付款 API，將延遲降低 42%，支援 12 萬名使用者』。",
-    },
-    {
-      severity: "low",
-      area: "ATS 關鍵字",
-      problem: "技能與經歷中的關鍵字可再對齊目標職缺。",
-      fix: "依目標職稱補上框架、資料庫、雲端、測試、部署與領域關鍵字。",
-    },
-  ],
-  rewrite_examples: [
-    {
-      original: "負責後端 API 開發與維護。",
-      improved: "使用 FastAPI / PostgreSQL 建置核心 API，將平均回應時間降低 42%，並支援每日 12 萬次請求。",
-      why: "加入技術、成果與規模，讓招募者能判斷你的實際貢獻。",
-    },
-  ],
-}
+
 
 function formatElapsed(seconds: number) {
   if (seconds < 60) return `${seconds} 秒`
@@ -62,12 +27,12 @@ export function ResumeHealthView(
 ) {
   const { t } = useTranslation();
   const [text, setText] = useState("")
+  const [reportLang, setReportLang] = useState("zh-TW")
   const [status, setStatus] = useState("")
   const [busy, setBusy] = useState(false)
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [assessment, setAssessment] = useState<ResumeAssessment | null>(null)
   const [error, setError] = useState("")
-  const [showSample, setShowSample] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
   const taskIdRef = useRef("")
   const stoppingRef = useRef(false)
@@ -133,6 +98,7 @@ export function ResumeHealthView(
     if (!text.trim()) { setError(t("resume_health.error_no_text", "請先貼上或載入履歷文字")); return }
     const form = new FormData()
     form.append("resume_text", text)
+    form.append("report_lang", reportLang)
     evaluate(form, "貼上的履歷")
   }
 
@@ -141,6 +107,7 @@ export function ResumeHealthView(
     if (!f) return
     const form = new FormData()
     form.append("file", f)
+    form.append("report_lang", reportLang)
     evaluate(form, f.name)
     e.target.value = ""
   }
@@ -154,13 +121,16 @@ export function ResumeHealthView(
           value={text}
           onChange={(e) => setText(e.target.value)}
         />
+        <div className="mt-2 flex items-center">
+          <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer select-none">
+            <input type="checkbox" className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+              checked={reportLang === "en"} onChange={(e) => setReportLang(e.target.checked ? "en" : "zh-TW")} disabled={busy} />
+            {t("resume_health.generate_english", "用英文產出健檢報告 (Generate English Report)")}
+          </label>
+        </div>
         <div className="flex flex-wrap gap-2 mt-3 items-center">
           <Button onClick={onSubmitText} loading={busy} icon={Gauge}>{t("resume_health.start_check", "開始健檢")}</Button>
           {busy && <Button variant="danger" onClick={stopEvaluate} icon={XCircle}>{t("common.stop", "停止")}</Button>}
-          <Button variant="secondary" onClick={() => setText(SAMPLE_RESUME)} disabled={busy}>{t("resume_health.load_sample", "載入範例履歷")}</Button>
-          <Button variant="secondary" onClick={() => setShowSample((v) => !v)} disabled={busy}>
-            {showSample ? t("resume_health.hide_sample", "隱藏深度範例") : t("resume_health.show_sample", "查看深度健檢範例")}
-          </Button>
           <label className={`inline-flex items-center gap-2 px-4 py-2 text-sm rounded-lg font-medium border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition cursor-pointer focus-within:ring-2 focus-within:ring-brand-300 ${busy ? "opacity-50 pointer-events-none" : ""}`}>
             <Upload className="w-4 h-4" />{t("resume_health.upload_file", "上傳檔案（PDF/DOCX/TXT）")}
             <input type="file" accept=".pdf,.docx,.txt" className="sr-only" onChange={onFile} disabled={busy} />
@@ -223,17 +193,7 @@ export function ResumeHealthView(
         </div>
       )}
 
-      {!busy && showSample && (
-        <section className="mb-6">
-          <div className="mb-2">
-            <p className="text-sm font-medium text-slate-700">{t("resume_health.sample_title", "深度健檢範例")}</p>
-            <p className="text-xs text-slate-500">{t("resume_health.sample_desc", "這不是你的履歷結果，只用來展示正常深度健檢完成時的報告樣式。")}</p>
-          </div>
-          <Dashboard a={DEEP_SAMPLE} />
-        </section>
-      )}
-
-      {!busy && !assessment && !error && !showSample && (
+      {!busy && !assessment && !error && (
         <Card className="p-2">
           <EmptyState
             icon={Gauge}

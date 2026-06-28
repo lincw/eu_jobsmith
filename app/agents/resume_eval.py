@@ -216,7 +216,7 @@ def structure_profile(resume_text: str) -> Profile:
     return _repair_profile(profile, resume_text)
 
 
-def evaluate_resume(resume_text: str, profile: Profile) -> ResumeAssessment:
+def evaluate_resume(resume_text: str, profile: Profile, lang: str = "zh-TW") -> ResumeAssessment:
     """履歷健檢評分（deep 分層）。
 
     健檢報告欄位多（含巢狀 issues/rewrite_examples），且 deep 為推理模型會額外
@@ -227,7 +227,8 @@ def evaluate_resume(resume_text: str, profile: Profile) -> ResumeAssessment:
         f"【履歷全文】\n{resume_text}\n\n"
         f"【已結構化資料】\n{profile.model_dump_json(indent=2)}"
     )
-    return llm.invoke([("system", EVAL_SYSTEM), ("human", human)])
+    lang_instruction = "全程使用繁體中文。" if lang == "zh-TW" else "Please output the entire report in English."
+    return llm.invoke([("system", EVAL_SYSTEM.replace("全程使用繁體中文。", lang_instruction)), ("human", human)])
 
 
 _METRIC_RE = re.compile(
@@ -284,6 +285,7 @@ def fallback_resume_assessment(
     profile: Profile,
     *,
     reason: str = "",
+    lang: str = "zh-TW",
 ) -> ResumeAssessment:
     """Return a conservative local assessment when the LLM report is not parseable."""
     text = (resume_text or "").strip()

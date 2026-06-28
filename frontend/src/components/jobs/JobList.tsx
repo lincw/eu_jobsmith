@@ -22,7 +22,6 @@ function FitBadge({ score }: { score: number }) {
   return (
     <div className={`shrink-0 w-14 h-14 rounded-xl bg-gradient-to-br ${b.cls} text-white grid place-items-center text-center`}>
       <div className="text-xl font-bold leading-none">{b.label}</div>
-      <div className="text-[9px] opacity-85 mt-0.5">{t("joblist_fit_label")}</div>
     </div>
   )
 }

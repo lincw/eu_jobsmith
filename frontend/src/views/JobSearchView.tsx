@@ -73,7 +73,9 @@ export function JobSearchView(
   const [companyJobs, setCompanyJobs] = useState<JobMatch[]>([])
   const [rankTotal, setRankTotal] = useState(0)
   const [minFit, setMinFit] = useState(0)            // 適配色帶門檻（0/60/80）
-  const [regions, setRegions] = useState<string[]>([])  // selected region keys; empty = global
+  const [regions, setRegions] = useState<string[]>([])
+  const [dateFilter, setDateFilter] = useState("any")
+  const [workType, setWorkType] = useState("any")  // selected region keys; empty = global
   const [linkedin, setLinkedin] = useState("")
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [blockedNote, setBlockedNote] = useState("")
@@ -177,6 +179,8 @@ export function JobSearchView(
     form.append("pages", String(pages))
     if (regions.length) form.append("region", regions.join(","))
     if (customKeywords.trim()) form.append("custom_keywords", customKeywords.trim())
+    if (dateFilter !== "any") form.append("date_filter", dateFilter)
+    if (workType !== "any") form.append("work_type", workType)
     form.append("lang", i18n.language.startsWith("zh") ? "zh" : "en")
   }
 
@@ -314,11 +318,15 @@ export function JobSearchView(
         <p className="text-sm text-slate-600 mb-2">
           {t("search_desc")}
         </p>
-        {activeProfile && (
-          <div className="mb-3 rounded-lg border border-brand-200 bg-brand-50/50 p-3 flex flex-col sm:flex-row sm:items-center gap-3">
+        {activeProfile ? (
+          <div className="flex items-center gap-2 mb-3 bg-brand-50 border border-brand-200 rounded-lg p-3">
+            <UserRound className="w-5 h-5 text-brand-600 shrink-0" />
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-brand-900 flex items-center gap-1.5">
-                <UserRound className="w-4 h-4" />{t("search_profile_current")}{profileDisplayName(activeProfile.profile)}
+              <p className="text-sm font-medium text-slate-800 flex items-center gap-2">
+                {t("app.current_profile", "目前使用 Profile：")}{activeProfile.label} <span className="text-xs text-slate-500 bg-white border border-slate-200 px-1.5 py-0.5 rounded">{t("app.from", "來自：")}{activeProfile.resumeLabel || t("app.uploaded_resume", "上傳的履歷")}</span>
+              </p>
+              <p className="text-sm font-medium text-brand-900 flex items-center gap-1.5 mt-1">
+                {t("search_profile_current")}{profileDisplayName(activeProfile.profile)}
               </p>
               <p className="text-xs text-brand-700 mt-0.5 truncate">
                 {profileSummary(activeProfile.profile)}
@@ -328,7 +336,7 @@ export function JobSearchView(
               {t("search_profile_btn")}
             </Button>
           </div>
-        )}
+        ) : null}
         <textarea
           className="w-full border border-slate-300 rounded-lg p-3 text-sm h-32 focus:outline-none focus:ring-2 focus:ring-brand-200 disabled:bg-slate-50"
           placeholder={t("search_textarea_placeholder")}
@@ -387,22 +395,55 @@ export function JobSearchView(
           />
         </div>
 
-        <div className="mt-4 flex items-center gap-2 text-sm">
-          <label htmlFor="pages-select" className="font-medium text-slate-700 flex items-center gap-1.5">
-            <Layers className="w-4 h-4 text-slate-400" />{t("search_pages_label")}
-          </label>
-          <select
-            id="pages-select"
-            value={pages}
-            onChange={(e) => setPages(Number(e.target.value))}
-            disabled={busy}
-            className="border border-slate-300 rounded-lg px-2 py-1 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-200 disabled:opacity-50"
-          >
-            {[1, 2, 3, 4, 5].map((n) => (
-              <option key={n} value={n}>{n} 頁</option>
-            ))}
-          </select>
-          <span className="text-xs text-slate-400">{t("search_pages_desc")}</span>
+        <div className="mt-4 flex flex-wrap items-center gap-4 text-sm">
+          <div className="flex items-center gap-2">
+            <label htmlFor="pages-select" className="font-medium text-slate-700 flex items-center gap-1.5">
+              <Layers className="w-4 h-4 text-slate-400" />{t("search_pages_label", "搜尋頁數")}
+            </label>
+            <select
+              id="pages-select"
+              value={pages}
+              onChange={(e) => setPages(Number(e.target.value))}
+              disabled={busy}
+              className="border border-slate-300 rounded-lg px-2 py-1 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-200 disabled:opacity-50"
+            >
+              {[1, 2, 3, 4, 5].map((n) => (
+                <option key={n} value={n}>{n} 頁</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <label htmlFor="date-select" className="font-medium text-slate-700">Date Option:</label>
+            <select
+              id="date-select"
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              disabled={busy}
+              className="border border-slate-300 rounded-lg px-2 py-1 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-200 disabled:opacity-50"
+            >
+              <option value="any">Any Time</option>
+              <option value="past_month">Past Month</option>
+              <option value="past_week">Past Week</option>
+              <option value="past_24h">Past 24 Hours</option>
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <label htmlFor="work-type-select" className="font-medium text-slate-700">Work Type:</label>
+            <select
+              id="work-type-select"
+              value={workType}
+              onChange={(e) => setWorkType(e.target.value)}
+              disabled={busy}
+              className="border border-slate-300 rounded-lg px-2 py-1 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-200 disabled:opacity-50"
+            >
+              <option value="any">Any</option>
+              <option value="remote">Remote</option>
+              <option value="hybrid">Hybrid</option>
+              <option value="onsite">On-site</option>
+            </select>
+          </div>
         </div>
 
         <div className="mt-4">
@@ -481,7 +522,7 @@ export function JobSearchView(
       {(jobs.length > 0 || (busy && rankTotal > 0)) && (
         <div className="flex flex-wrap items-center gap-3 mb-3">
           <h2 className="font-semibold flex items-center gap-2">
-            AI 推薦職缺（依適配度排序）
+            {t("jobsearch.ai_recommended_jobs", "AI Recommended Jobs (Sorted by fit)")}
             {fallback && <Badge tone="amber">範例資料</Badge>}
           </h2>
           {busy && rankTotal > 0 && (

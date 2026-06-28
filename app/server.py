@@ -285,6 +285,7 @@ def resume_evaluate(
     resume_text: str = Form(default=""),
     task_id: str = Form(default=""),
     lang: str = Form(default="zh"),
+    report_lang: str = Form(default="zh-TW"),
 ):
     current_lang.set(lang)
     resume_label = file.filename if file and file.filename else ("貼上文字" if resume_text.strip() else "")
@@ -332,7 +333,7 @@ def resume_evaluate(
             token.check()
             try:
                 with task_control.task_context(token):
-                    assessment = evaluate_resume(text, profile)
+                    assessment = evaluate_resume(text, profile, lang=report_lang)
             except Exception as exc:  # noqa: BLE001 - resume health should degrade on AI/runtime failures
                 if isinstance(exc, task_control.TaskCancelled):
                     raise
@@ -341,7 +342,7 @@ def resume_evaluate(
                     "step": "fallback",
                     "message": "AI 回覆格式不正確，正在改用保守備援健檢產出可讀報告。",
                 })
-                assessment = fallback_resume_assessment(text, profile, reason=str(exc))
+                assessment = fallback_resume_assessment(text, profile, reason=str(exc), lang=report_lang)
             token.check()
             yield _sse({
                 "type": "progress",
@@ -426,6 +427,8 @@ def jobs_auto(
     region: str = Form(default=""),
     task_id: str = Form(default=""),
     custom_keywords: str = Form(default=""),
+    date_filter: str = Form(default="any"),
+    work_type: str = Form(default="any"),
     lang: str = Form(default="zh"),
 ):
     """履歷 → 自動找職缺：解析履歷 → 推導關鍵字 → 搜尋多站 →（選填）併入指定公司的開缺 → 依履歷排序。
@@ -490,9 +493,9 @@ def jobs_auto(
             for q in queries[:3]:
                 token.check()
                 yield _sse({"type": "progress", "step": "search", "message": f"搜尋「{q}」中…"})
-                for res in search_all(q, limit=15, pages=pages, area=area, location=li_location):
+                for res in search_all(q, limit=15, pages=pages, area=area, location=li_location, date_filter=date_filter, work_type=work_type):
                     token.check()
-                    # 來源在結果端依 location 過濾，地區一致生效。
+                    # 來源在結果端依 location 與條件過濾，地區一致生效。
                     kept = [j for j in res.jobs
                             if regions.match_location(j.location, region_keys)]
                     yield _sse({"type": "source", "source": res.source,
@@ -1262,6 +1265,15 @@ def resume_checks_get(cid: int):
 @app.delete("/api/resume/checks/{cid}")
 def resume_checks_delete(cid: int):
     _resume_checks.delete_check(cid)
+    return {"ok": True}
+
+
+class RenameRequest(BaseModel):
+    label: str
+
+@app.post("/api/resume/checks/{cid}/rename")
+def resume_checks_rename(cid: int, req: RenameRequest):
+    _resume_checks.rename_check(cid, req.label)
     return {"ok": True}
 
 
