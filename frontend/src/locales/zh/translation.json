@@ -32,7 +32,7 @@
   "search_custom_keywords_label": "自訂搜尋關鍵字（選填，以逗號分隔）",
   "search_location_label": "地區 (選填，可複選；留空則為全歐)",
   "search_location_all": "全歐盟 (預設)",
-  "search_location_desc": "預設為「全歐盟」。建議選擇特定國家，否則 LinkedIn 訪客 API 可能會依據伺服器 IP (台灣) 傳回結果。",
+  "search_location_desc": "預設為「全歐盟」。建議選擇特定國家以限縮搜尋範圍。",
   "joblist_fit_high": "高",
   "joblist_fit_medium": "中",
   "joblist_fit_low": "低",

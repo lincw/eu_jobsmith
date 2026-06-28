@@ -468,7 +468,7 @@ def jobs_auto(
             token.check()
             yield _sse({"type": "queries", "queries": queries})
 
-            seen: set[str] = set()
+            seen_jobs: dict[str, JobPosting] = {}
             resume_jobs = []
             for q in queries[:3]:
                 token.check()
@@ -481,10 +481,19 @@ def jobs_auto(
                     yield _sse({"type": "source", "source": res.source,
                                 "count": len(kept), "blocked": res.blocked})
                     for j in kept:
-                        key = j.url or (j.title + j.company)
-                        if key in seen:
+                        title_norm = re.sub(r'\W+', '', j.title).lower()
+                        company_norm = re.sub(r'\W+', '', j.company).lower()
+                        key = f"{title_norm}||{company_norm}"
+                        
+                        if key in seen_jobs:
+                            existing = seen_jobs[key]
+                            if j.url and j.url != existing.url and j.url not in existing.other_urls:
+                                existing.other_urls.append(j.url)
+                            if j.source and j.source != existing.source and j.source not in existing.other_sources:
+                                existing.other_sources.append(j.source)
                             continue
-                        seen.add(key)
+                            
+                        seen_jobs[key] = j
                         resume_jobs.append(j)
 
             # 誠實降級：AI 搜尋零結果 → 告知並改用後備樣本職缺，demo 永遠有東西看。
@@ -521,10 +530,19 @@ def jobs_auto(
                     found = []
                 added = 0
                 for j in found:
-                    key = j.url or (j.title + j.company)
-                    if key in seen:  # 已出現在 AI 結果就不重複列
+                    title_norm = re.sub(r'\W+', '', j.title).lower()
+                    company_norm = re.sub(r'\W+', '', j.company).lower()
+                    key = f"{title_norm}||{company_norm}"
+                    
+                    if key in seen_jobs:
+                        existing = seen_jobs[key]
+                        if j.url and j.url != existing.url and j.url not in existing.other_urls:
+                            existing.other_urls.append(j.url)
+                        if j.source and j.source != existing.source and j.source not in existing.other_sources:
+                            existing.other_sources.append(j.source)
                         continue
-                    seen.add(key)
+                        
+                    seen_jobs[key] = j
                     company_pool.append(j)
                     added += 1
                 yield _sse({"type": "source", "source": company,

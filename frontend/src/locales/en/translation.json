@@ -32,7 +32,7 @@
   "search_custom_keywords_label": "Custom search keywords (optional, comma-separated)",
   "search_location_label": "Location (optional, multi-select; none = global)",
   "search_location_all": "All EU (default)",
-  "search_location_desc": "Defaults to \"European Union\" when nothing is selected — LinkedIn's guest API otherwise returns results based on server IP (Taiwan). Pick a specific country to narrow further.",
+  "search_location_desc": "Defaults to \"European Union\" when nothing is selected. Pick a specific country to narrow your search.",
   "joblist_fit_high": "High",
   "joblist_fit_medium": "Mid",
   "joblist_fit_low": "Low",

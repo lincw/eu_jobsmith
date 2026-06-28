@@ -36,6 +36,11 @@ function JobCard({ m, onPick, pending }: { m: JobMatch; onPick: (m: JobMatch) =>
           <a href={m.job.url} target="_blank" rel="noreferrer"
             className="font-medium text-slate-900 hover:text-brand-700 hover:underline rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-300">{m.job.title}</a>
           <Badge tone={m.job.source === "careers" ? "brand" : "slate"}>{SRC_LABEL[m.job.source] || m.job.source}</Badge>
+          {m.job.other_sources?.map((s, idx) => (
+            <a key={idx} href={m.job.other_urls?.[idx] || "#"} target="_blank" rel="noreferrer" className="inline-block hover:opacity-80">
+              <Badge tone={s === "careers" ? "brand" : "slate"}>{SRC_LABEL[s] || s}</Badge>
+            </a>
+          ))}
         </div>
         <p className="text-sm text-slate-600 mt-0.5">
           {m.job.company}

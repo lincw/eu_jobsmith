@@ -207,6 +207,8 @@ class JobPosting(BaseModel):
     snippet: str | None = Field(default=None, description="職缺摘要")
     requirements: list[str] = Field(default_factory=list)
     raw_text: str = Field(default="", description="原始職缺全文，供後續解析")
+    other_urls: list[str] = Field(default_factory=list, description="合併重複職缺時的其他 URL")
+    other_sources: list[str] = Field(default_factory=list, description="合併重複職缺時的其他來源")
 
 
 class JobMatch(BaseModel):

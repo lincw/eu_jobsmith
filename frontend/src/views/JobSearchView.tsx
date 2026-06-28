@@ -335,9 +335,6 @@ export function JobSearchView(
                 {profileSummary(activeProfile.profile)}
               </p>
             </div>
-            <Button variant="secondary" size="sm" icon={Search} onClick={onStartWithActiveProfile} disabled={busy}>
-              {t("search_profile_btn")}
-            </Button>
           </div>
         ) : null}
         <textarea
